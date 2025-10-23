@@ -37,7 +37,7 @@ var builtInMethods = {
       console.log(`${args[1]} is a shell builtin`);
       return;
     }
-    console.log(`${args[0]}: not found`);
+    console.log(`${args[1]}: not found`);
     return;
   }
 };
