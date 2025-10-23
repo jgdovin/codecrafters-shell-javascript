@@ -29,15 +29,20 @@ var rl = readline.createInterface({
   output: process.stdout
 });
 var parsePrompt = (answer) => {
+  let validCommand = false;
   const args = answer.split(" ");
   if (args[0] === "exit") {
     (0, import_process.exit)(args[1]);
   }
+  if (args[0] === "echo") {
+    console.log(args.slice(1).join(" "));
+    return;
+  }
+  console.log(`${answer}: command not found`);
 };
 var promptUserInput = async () => {
   rl.question("$ ", (answer) => {
     parsePrompt(answer);
-    console.log(`${answer}: command not found`);
     promptUserInput();
   });
 };
