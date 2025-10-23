@@ -1,29 +1,20 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+// src/main.ts
+var import_fs2 = require("fs");
+var import_process = require("process");
+var import_readline = require("readline");
+
+// src/utils.ts
+var import_fs = require("fs");
+var hasPermission = (path, mode = import_fs.constants.X_OK) => {
+  try {
+    (0, import_fs.accessSync)(path, mode);
+    return true;
+  } catch {
+    return false;
   }
-  return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 
 // src/main.ts
-var import_process = require("process");
-var readline = __toESM(require("readline"));
 var builtInMethods = {
   echo: ({ args }) => {
     console.log(args.slice(1).join(" "));
@@ -37,12 +28,22 @@ var builtInMethods = {
       console.log(`${args[1]} is a shell builtin`);
       return;
     }
+    const command = args[1];
+    const paths = process.env.PATH.split(":");
+    for (const path of paths) {
+      const filePath = `${path}/${command}`;
+
+      if ((0, import_fs2.existsSync)(filePath) && hasPermission(filePath)) {
+        console.log(`${command} is ${filePath}`);
+        return;
+      }
+    }
     console.log(`${args[1]}: not found`);
     return;
   }
 };
 var builtInCommands = Object.keys(builtInMethods);
-var rl = readline.createInterface({
+var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
 });

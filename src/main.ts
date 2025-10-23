@@ -1,5 +1,7 @@
+import { existsSync } from "fs";
 import { exit } from "process";
-import * as readline from "readline";
+import { createInterface } from "readline";
+import { hasPermission } from "./utils";
 
 interface Args {
   args: string[];
@@ -18,6 +20,21 @@ const builtInMethods = {
       console.log(`${args[1]} is a shell builtin`);
       return;
     }
+
+    const command = args[1];
+    const paths = process.env.PATH.split(":");
+
+    for (const path of paths) {
+      const filePath = `${path}/${command}`;
+      if (command === "my_exe") {
+        console.log(hasPermission(filePath), " - ", filePath);
+      }
+      if (existsSync(filePath) && hasPermission(filePath)) {
+        console.log(`${command} is ${filePath}`);
+        return;
+      }
+    }
+
     console.log(`${args[1]}: not found`);
     return;
   },
@@ -25,7 +42,7 @@ const builtInMethods = {
 
 const builtInCommands = Object.keys(builtInMethods);
 
-const rl = readline.createInterface({
+const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
 });
