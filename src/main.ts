@@ -1,6 +1,6 @@
 import { exit } from "process";
 import { createInterface } from "readline";
-import { checkPathForApp, hasPermission } from "./utils";
+import { checkPathForApp } from "./utils";
 import { spawnSync } from "child_process";
 interface Args {
   args: string[];
