@@ -1,8 +1,7 @@
-import { existsSync } from "fs";
 import { exit } from "process";
 import { createInterface } from "readline";
-import { hasPermission } from "./utils";
-
+import { checkPathForApp, hasPermission } from "./utils";
+import { execSync } from "child_process";
 interface Args {
   args: string[];
 }
@@ -22,14 +21,12 @@ const builtInMethods = {
     }
 
     const command = args[1];
-    const paths = process.env.PATH.split(":");
 
-    for (const path of paths) {
-      const filePath = `${path}/${command}`;
-      if (hasPermission(filePath)) {
-        console.log(`${command} is ${filePath}`);
-        return;
-      }
+    const filePath = checkPathForApp({ command });
+
+    if (filePath) {
+      console.log(`${command} is ${filePath}`);
+      return;
     }
 
     console.log(`${args[1]}: not found`);
@@ -44,19 +41,36 @@ const rl = createInterface({
   output: process.stdout,
 });
 
-const parsePrompt = (answer: string) => {
+const parsePrompt = async (answer: string) => {
   const args = answer.split(" ");
 
   if (builtInCommands.includes(args[0])) {
     builtInMethods[args[0]]({ args });
     return;
   }
-  console.log(`${answer}: command not found`);
+
+  const command = args[0];
+  const filePath = checkPathForApp({ command });
+
+  try {
+    if (!filePath) throw new Error("command not found");
+    const result = await execSync(`${command} ${args.slice(1).join(" ")}`);
+    console.log(
+      result
+        .toString()
+        .split("\n")
+        .filter((line) => line !== "")
+        .join("\n")
+    );
+  } catch (e) {
+    console.log(`${answer}: ${e.message}`);
+  }
+  return;
 };
 
-const promptUserInput = async () => {
-  rl.question("$ ", (answer) => {
-    parsePrompt(answer);
+const promptUserInput = () => {
+  rl.question("$ GeeksShell > ", async (answer) => {
+    await parsePrompt(answer);
     promptUserInput();
   });
 };

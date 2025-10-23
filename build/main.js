@@ -12,8 +12,21 @@ var hasPermission = (path, mode = import_fs.constants.X_OK) => {
     return false;
   }
 };
+var checkPathForApp = ({
+  command
+}) => {
+  const paths = process.env.PATH.split(":");
+  for (const path of paths) {
+    const filePath = `${path}/${command}`;
+    if (hasPermission(filePath)) {
+      return filePath;
+    }
+  }
+  return null;
+};
 
 // src/main.ts
+var import_child_process = require("child_process");
 var builtInMethods = {
   echo: ({ args }) => {
     console.log(args.slice(1).join(" "));
@@ -28,13 +41,10 @@ var builtInMethods = {
       return;
     }
     const command = args[1];
-    const paths = process.env.PATH.split(":");
-    for (const path of paths) {
-      const filePath = `${path}/${command}`;
-      if (hasPermission(filePath)) {
-        console.log(`${command} is ${filePath}`);
-        return;
-      }
+    const filePath = checkPathForApp({ command });
+    if (filePath) {
+      console.log(`${command} is ${filePath}`);
+      return;
     }
     console.log(`${args[1]}: not found`);
     return;
@@ -45,17 +55,28 @@ var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
 });
-var parsePrompt = (answer) => {
+var parsePrompt = async (answer) => {
   const args = answer.split(" ");
   if (builtInCommands.includes(args[0])) {
     builtInMethods[args[0]]({ args });
     return;
   }
-  console.log(`${answer}: command not found`);
+  const command = args[0];
+  const filePath = checkPathForApp({ command });
+  try {
+    if (!filePath) throw new Error("command not found");
+    const result = await (0, import_child_process.execSync)(`${command} ${args.slice(1).join(" ")}`);
+    console.log(
+      result.toString().split("\n").filter((line) => line !== "").join("\n")
+    );
+  } catch (e) {
+    console.log(`${answer}: ${e.message}`);
+  }
+  return;
 };
-var promptUserInput = async () => {
-  rl.question("$ ", (answer) => {
-    parsePrompt(answer);
+var promptUserInput = () => {
+  rl.question("$ GeeksShell > ", async (answer) => {
+    await parsePrompt(answer);
     promptUserInput();
   });
 };
