@@ -7,7 +7,6 @@ interface Args {
 export const builtInMethods = {
   echo: ({ args }: Args) => {
     console.log(args.slice(1).join(" "));
-    return;
   },
   exit: ({ args }: Args) => {
     exit(args[1]);
@@ -34,7 +33,8 @@ export const builtInMethods = {
   },
   cd: ({ args }: Args) => {
     try {
-      process.chdir(args[1]);
+      const path = args[1].replace("~", process.env.HOME);
+      process.chdir(path);
     } catch (e) {
       console.log(`cd: ${args[1]}: No such file or directory`);
     }

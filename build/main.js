@@ -32,7 +32,6 @@ var import_process = require("process");
 var builtInMethods = {
   echo: ({ args }) => {
     console.log(args.slice(1).join(" "));
-    return;
   },
   exit: ({ args }) => {
     (0, import_process.exit)(args[1]);
@@ -55,7 +54,8 @@ var builtInMethods = {
   },
   cd: ({ args }) => {
     try {
-      process.chdir(args[1]);
+      const path = args[1].replace("~", process.env.HOME);
+      process.chdir(path);
     } catch (e) {
       console.log(`cd: ${args[1]}: No such file or directory`);
     }
