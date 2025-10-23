@@ -33,7 +33,11 @@ export const builtInMethods = {
     console.log(process.cwd());
   },
   cd: ({ args }: Args) => {
-    process.chdir(args[1]);
+    try {
+      process.chdir(args[1]);
+    } catch (e) {
+      console.log(`cd: ${args[1]}: No such file or directory`);
+    }
   },
 };
 

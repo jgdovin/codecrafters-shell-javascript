@@ -54,7 +54,11 @@ var builtInMethods = {
     console.log(process.cwd());
   },
   cd: ({ args }) => {
-    process.chdir(args[1]);
+    try {
+      process.chdir(args[1]);
+    } catch (e) {
+      console.log(`cd: ${args[1]}: No such file or directory`);
+    }
   }
 };
 var builtInCommands = Object.keys(builtInMethods);
