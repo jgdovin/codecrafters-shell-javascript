@@ -1,5 +1,4 @@
 // src/main.ts
-var import_fs2 = require("fs");
 var import_process = require("process");
 var import_readline = require("readline");
 
@@ -32,8 +31,7 @@ var builtInMethods = {
     const paths = process.env.PATH.split(":");
     for (const path of paths) {
       const filePath = `${path}/${command}`;
-
-      if ((0, import_fs2.existsSync)(filePath) && hasPermission(filePath)) {
+      if (hasPermission(filePath)) {
         console.log(`${command} is ${filePath}`);
         return;
       }

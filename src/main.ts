@@ -26,10 +26,7 @@ const builtInMethods = {
 
     for (const path of paths) {
       const filePath = `${path}/${command}`;
-      if (command === "my_exe") {
-        console.log(hasPermission(filePath), " - ", filePath);
-      }
-      if (existsSync(filePath) && hasPermission(filePath)) {
+      if (hasPermission(filePath)) {
         console.log(`${command} is ${filePath}`);
         return;
       }
