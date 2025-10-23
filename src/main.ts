@@ -69,7 +69,7 @@ const parsePrompt = async (answer: string) => {
 };
 
 const promptUserInput = () => {
-  rl.question("$ GeeksShell > ", async (answer) => {
+  rl.question("$ ", async (answer) => {
     await parsePrompt(answer);
     promptUserInput();
   });
