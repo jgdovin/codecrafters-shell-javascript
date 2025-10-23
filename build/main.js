@@ -28,5 +28,8 @@ var rl = readline.createInterface({
   output: process.stdout
 });
 rl.question("$ ", (answer) => {
+  if (answer) {
+    console.log(`${answer}: command not found`);
+  }
   rl.close();
 });
