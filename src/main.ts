@@ -1,40 +1,7 @@
-import { exit } from "process";
 import { createInterface } from "readline";
 import { checkPathForApp } from "./utils";
 import { spawnSync } from "child_process";
-interface Args {
-  args: string[];
-}
-
-const builtInMethods = {
-  echo: ({ args }: Args) => {
-    console.log(args.slice(1).join(" "));
-    return;
-  },
-  exit: ({ args }: Args) => {
-    exit(args[1]);
-  },
-  type: ({ args }: Args) => {
-    if (builtInCommands.includes(args[1])) {
-      console.log(`${args[1]} is a shell builtin`);
-      return;
-    }
-
-    const command = args[1];
-
-    const filePath = checkPathForApp({ command });
-
-    if (filePath) {
-      console.log(`${command} is ${filePath}`);
-      return;
-    }
-
-    console.log(`${args[1]}: not found`);
-    return;
-  },
-};
-
-const builtInCommands = Object.keys(builtInMethods);
+import { builtInCommands, builtInMethods } from "./built-ins";
 
 const rl = createInterface({
   input: process.stdin,

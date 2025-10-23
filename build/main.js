@@ -1,5 +1,4 @@
 // src/main.ts
-var import_process = require("process");
 var import_readline = require("readline");
 
 // src/utils.ts
@@ -27,6 +26,9 @@ var checkPathForApp = ({
 
 // src/main.ts
 var import_child_process = require("child_process");
+
+// src/built-ins.ts
+var import_process = require("process");
 var builtInMethods = {
   echo: ({ args }) => {
     console.log(args.slice(1).join(" "));
@@ -48,9 +50,15 @@ var builtInMethods = {
     }
     console.log(`${args[1]}: not found`);
     return;
+  },
+  pwd: () => {
+    console.log(process.cwd());
+    return;
   }
 };
 var builtInCommands = Object.keys(builtInMethods);
+
+// src/main.ts
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
