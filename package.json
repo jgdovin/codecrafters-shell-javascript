@@ -4,7 +4,7 @@
   "description": "Build your own Shell challenge, from CodeCrafters",
   "main": "main.js",
   "scripts": {
-    "dev": "tsx app/main.ts",
+    "dev": "node build/main.js",
     "watch": "esbuild src/main.ts --bundle --outfile=build/main.js --platform=node --watch"
   },
   "keywords": [

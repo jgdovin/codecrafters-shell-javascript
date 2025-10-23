@@ -27,9 +27,10 @@ var rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
-rl.question("$ ", (answer) => {
-  if (answer) {
+var promptUserInput = async () => {
+  rl.question("$ ", (answer) => {
     console.log(`${answer}: command not found`);
-  }
-  rl.close();
-});
+    promptUserInput();
+  });
+};
+promptUserInput();

@@ -5,10 +5,11 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-// Uncomment this block to pass the first stage
-rl.question("$ ", (answer) => {
-  if (answer) {
+const promptUserInput = async () => {
+  rl.question("$ ", (answer) => {
     console.log(`${answer}: command not found`);
-  }
-  rl.close();
-});
+    promptUserInput();
+  });
+};
+
+promptUserInput();
