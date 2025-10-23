@@ -28,11 +28,12 @@ export const builtInMethods = {
     }
 
     console.log(`${args[1]}: not found`);
-    return;
   },
   pwd: () => {
     console.log(process.cwd());
-    return;
+  },
+  cd: ({ args }: Args) => {
+    process.chdir(args[1]);
   },
 };
 

@@ -49,11 +49,12 @@ var builtInMethods = {
       return;
     }
     console.log(`${args[1]}: not found`);
-    return;
   },
   pwd: () => {
     console.log(process.cwd());
-    return;
+  },
+  cd: ({ args }) => {
+    process.chdir(args[1]);
   }
 };
 var builtInCommands = Object.keys(builtInMethods);
