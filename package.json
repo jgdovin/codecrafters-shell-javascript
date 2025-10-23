@@ -4,12 +4,18 @@
   "description": "Build your own Shell challenge, from CodeCrafters",
   "main": "main.js",
   "scripts": {
-    "dev": "node app/main.js"
+    "dev": "tsx app/main.ts",
+    "watch": "tsx --watch"
   },
   "keywords": [
     "build-your-own-x"
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {}
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "esbuild": "0.25.11",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
 }

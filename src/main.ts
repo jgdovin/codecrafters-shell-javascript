@@ -1,4 +1,4 @@
-const readline = require("readline");
+import * as readline from "readline";
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -6,6 +6,6 @@ const rl = readline.createInterface({
 });
 
 // Uncomment this block to pass the first stage
-// rl.question("$ ", (answer) => {
-//   rl.close();
-// });
+rl.question("$ ", (answer) => {
+  rl.close();
+});
