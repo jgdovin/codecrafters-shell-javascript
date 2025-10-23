@@ -8,7 +8,6 @@ const rl = readline.createInterface({
 // Uncomment this block to pass the first stage
 rl.question("$ ", (answer) => {
   if (answer) {
-    // test
     console.log(`${answer}: command not found`);
   }
   rl.close();
