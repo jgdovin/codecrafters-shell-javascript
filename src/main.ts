@@ -1,7 +1,7 @@
 import { exit } from "process";
 import { createInterface } from "readline";
 import { checkPathForApp, hasPermission } from "./utils";
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 interface Args {
   args: string[];
 }
@@ -49,19 +49,15 @@ const parsePrompt = async (answer: string) => {
     return;
   }
 
-  const command = args[0];
+  const command = args.shift();
   const filePath = checkPathForApp({ command });
 
   try {
     if (!filePath) throw new Error("command not found");
-    const result = await execSync(`${command} ${args.slice(1).join(" ")}`);
-    console.log(
-      result
-        .toString()
-        .split("\n")
-        .filter((line) => line !== "")
-        .join("\n")
-    );
+    spawnSync(`${command}`, args, {
+      encoding: "utf-8",
+      stdio: "inherit",
+    });
   } catch (e) {
     console.log(`${answer}: ${e.message}`);
   }

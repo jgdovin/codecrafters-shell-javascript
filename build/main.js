@@ -61,14 +61,14 @@ var parsePrompt = async (answer) => {
     builtInMethods[args[0]]({ args });
     return;
   }
-  const command = args[0];
+  const command = args.shift();
   const filePath = checkPathForApp({ command });
   try {
     if (!filePath) throw new Error("command not found");
-    const result = await (0, import_child_process.execSync)(`${command} ${args.slice(1).join(" ")}`);
-    console.log(
-      result.toString().split("\n").filter((line) => line !== "").join("\n")
-    );
+    (0, import_child_process.spawnSync)(`${command}`, args, {
+      encoding: "utf-8",
+      stdio: "inherit"
+    });
   } catch (e) {
     console.log(`${answer}: ${e.message}`);
   }
