@@ -22,13 +22,21 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 
 // src/main.ts
+var import_process = require("process");
 var readline = __toESM(require("readline"));
 var rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
+var parsePrompt = (answer) => {
+  const args = answer.split(" ");
+  if (args[0] === "exit") {
+    (0, import_process.exit)(args[1]);
+  }
+};
 var promptUserInput = async () => {
   rl.question("$ ", (answer) => {
+    parsePrompt(answer);
     console.log(`${answer}: command not found`);
     promptUserInput();
   });
