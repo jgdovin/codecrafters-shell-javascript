@@ -1,5 +1,5 @@
 import { createInterface } from "readline";
-import { checkPathForApp } from "./utils";
+import { checkPathForApp, tokenize, tokensToArgs } from "./utils";
 import { spawnSync } from "child_process";
 import { builtInCommands, builtInMethods } from "./built-ins";
 
@@ -9,7 +9,7 @@ const rl = createInterface({
 });
 
 const parsePrompt = async (answer: string) => {
-  const args = answer.split(" ");
+  const args = tokensToArgs({ tokens: tokenize({ input: answer }) });
 
   if (builtInCommands.includes(args[0])) {
     builtInMethods[args[0]]({ args });
