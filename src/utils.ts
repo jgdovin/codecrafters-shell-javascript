@@ -1,5 +1,13 @@
 import { constants, accessSync } from "fs";
-import { Char, CharEnum, Token, TokenEnum } from "./types";
+import {
+  Char,
+  CharEnum,
+  SPECIAL_CHARS,
+  SpecialChars,
+  specialChars,
+  Token,
+  TokenEnum,
+} from "./types";
 import { match } from "ts-pattern";
 export const hasPermission = (path, mode = constants.X_OK) => {
   try {
@@ -26,13 +34,26 @@ export const checkPathForApp = ({
 };
 
 const classifyChar = ({ char }: { char: string }): Char => {
-  return match(char)
-    .with("'", () => ({ kind: CharEnum.SINGLE_QUOTE } as const))
-    .with(" ", () => ({ kind: CharEnum.SPACE } as const))
-    .otherwise((c) => ({ kind: CharEnum.REGULAR, char: c } as const));
+  if (char in SPECIAL_CHARS) {
+    const kind = SPECIAL_CHARS[char as keyof typeof SPECIAL_CHARS];
+    return specialCharToCharType({ kind });
+  }
+  return { kind: CharEnum.REGULAR, char };
 };
 
-const REGULAR_SPLIT_CHARS = [" ", "'", '"'];
+const specialCharToCharType = ({ kind }: { kind: SpecialChars }): Char => {
+  return match(kind)
+    .with(
+      CharEnum.SINGLE_QUOTE,
+      () => ({ kind: CharEnum.SINGLE_QUOTE } as Char)
+    )
+    .with(CharEnum.SPACE, () => ({ kind: CharEnum.SPACE } as Char))
+    .with(
+      CharEnum.DOUBLE_QUOTE,
+      () => ({ kind: CharEnum.DOUBLE_QUOTE } as Char)
+    )
+    .exhaustive();
+};
 
 export const tokenize = ({ input }: { input: string }): Token[] => {
   const tokens: Token[] = [];
@@ -46,9 +67,15 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         tokens.push({ type: TokenEnum.QUOTED, value: input.slice(start, i) });
         i++; // ignore closing quote
       })
+      .with({ kind: CharEnum.DOUBLE_QUOTE }, () => {
+        const start = ++i;
+        while (i < input.length && input[i] !== '"') i++;
+        tokens.push({ type: TokenEnum.QUOTED, value: input.slice(start, i) });
+        i++;
+      })
       .with({ kind: CharEnum.REGULAR }, () => {
         const start = i;
-        while (i < input.length && !REGULAR_SPLIT_CHARS.includes(input[i])) i++;
+        while (i < input.length && !specialChars.includes(input[i])) i++;
         tokens.push({ type: TokenEnum.UNQUOTED, value: input.slice(start, i) });
       })
       .with({ kind: CharEnum.SPACE }, () => {

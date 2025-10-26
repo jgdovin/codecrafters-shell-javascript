@@ -4,6 +4,14 @@ var import_readline = require("readline");
 // src/utils.ts
 var import_fs = require("fs");
 
+// src/types.ts
+var SPECIAL_CHARS = {
+  "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
+  '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
+  " ": "SPACE" /* SPACE */
+};
+var specialChars = Object.keys(SPECIAL_CHARS);
+
 // node_modules/ts-pattern/dist/index.js
 var t = Symbol.for("@ts-pattern/matcher");
 var e = Symbol.for("@ts-pattern/isVariadic");
@@ -208,9 +216,21 @@ var checkPathForApp = ({
   return null;
 };
 var classifyChar = ({ char }) => {
-  return M(char).with("'", () => ({ kind: "SINGLE_QUOTE" /* SINGLE_QUOTE */ })).with(" ", () => ({ kind: "SPACE" /* SPACE */ })).otherwise((c2) => ({ kind: "REGULAR" /* REGULAR */, char: c2 }));
+  if (char in SPECIAL_CHARS) {
+    const kind = SPECIAL_CHARS[char];
+    return specialCharToCharType({ kind });
+  }
+  return { kind: "REGULAR" /* REGULAR */, char };
 };
-var REGULAR_SPLIT_CHARS = [" ", "'", '"'];
+var specialCharToCharType = ({ kind }) => {
+  return M(kind).with(
+    "SINGLE_QUOTE" /* SINGLE_QUOTE */,
+    () => ({ kind: "SINGLE_QUOTE" /* SINGLE_QUOTE */ })
+  ).with("SPACE" /* SPACE */, () => ({ kind: "SPACE" /* SPACE */ })).with(
+    "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
+    () => ({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ })
+  ).exhaustive();
+};
 var tokenize = ({ input }) => {
   const tokens = [];
   let i2 = 0;
@@ -221,9 +241,14 @@ var tokenize = ({ input }) => {
       while (i2 < input.length && input[i2] !== "'") i2++;
       tokens.push({ type: "QUOTED" /* QUOTED */, value: input.slice(start, i2) });
       i2++;
+    }).with({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ }, () => {
+      const start = ++i2;
+      while (i2 < input.length && input[i2] !== '"') i2++;
+      tokens.push({ type: "QUOTED" /* QUOTED */, value: input.slice(start, i2) });
+      i2++;
     }).with({ kind: "REGULAR" /* REGULAR */ }, () => {
       const start = i2;
-      while (i2 < input.length && !REGULAR_SPLIT_CHARS.includes(input[i2])) i2++;
+      while (i2 < input.length && !specialChars.includes(input[i2])) i2++;
       tokens.push({ type: "UNQUOTED" /* UNQUOTED */, value: input.slice(start, i2) });
     }).with({ kind: "SPACE" /* SPACE */ }, () => {
       tokens.push({ type: "WHITESPACE" /* WHITESPACE */, value: null });

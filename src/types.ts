@@ -5,11 +5,13 @@ export type Token =
 
 export type Char =
   | { kind: CharEnum.SINGLE_QUOTE }
+  | { kind: CharEnum.DOUBLE_QUOTE }
   | { kind: CharEnum.SPACE }
   | { kind: CharEnum.REGULAR; char: string };
 
 export enum CharEnum {
   SINGLE_QUOTE = "SINGLE_QUOTE",
+  DOUBLE_QUOTE = "DOUBLE_QUOTE",
   SPACE = "SPACE",
   REGULAR = "REGULAR",
 }
@@ -19,3 +21,13 @@ export enum TokenEnum {
   UNQUOTED = "UNQUOTED",
   WHITESPACE = "WHITESPACE",
 }
+
+export const SPECIAL_CHARS = {
+  "'": CharEnum.SINGLE_QUOTE,
+  '"': CharEnum.DOUBLE_QUOTE,
+  " ": CharEnum.SPACE,
+} as const;
+
+export const specialChars = Object.keys(SPECIAL_CHARS);
+
+export type SpecialChars = (typeof SPECIAL_CHARS)[keyof typeof SPECIAL_CHARS];
