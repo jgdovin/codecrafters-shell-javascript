@@ -28,6 +28,7 @@ const specialCharToCharType = ({ kind }: { kind: SpecialChars }): Char => {
       CharEnum.DOUBLE_QUOTE,
       () => ({ kind: CharEnum.DOUBLE_QUOTE } as Char)
     )
+    .with(CharEnum.BACKSLASH, () => ({ kind: CharEnum.BACKSLASH } as Char))
     .exhaustive();
 };
 
@@ -58,6 +59,14 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         tokens.push({ type: TokenEnum.WHITESPACE, value: null });
         i++;
       })
+      .with({ kind: CharEnum.BACKSLASH }, () => {
+        const start = ++i;
+        tokens.push({
+          type: TokenEnum.ESCAPED,
+          value: input.slice(start, start + 1),
+        });
+        i++;
+      })
       .exhaustive();
   }
   return tokens;
@@ -69,9 +78,14 @@ export const tokensToArgs = ({ tokens }: { tokens: Token[] }): string[] => {
 
   for (const token of tokens) {
     match(token)
-      .with({ type: TokenEnum.QUOTED }, { type: TokenEnum.UNQUOTED }, (t) => {
-        currentArg += t.value;
-      })
+      .with(
+        { type: TokenEnum.QUOTED },
+        { type: TokenEnum.UNQUOTED },
+        { type: TokenEnum.ESCAPED },
+        (t) => {
+          currentArg += t.value;
+        }
+      )
       .with({ type: TokenEnum.WHITESPACE }, () => {
         if (currentArg !== "") {
           args.push(currentArg);

@@ -249,6 +249,7 @@ function F(t2) {
 var SPECIAL_CHARS = {
   "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
   '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
+  "\\": "BACKSLASH" /* BACKSLASH */,
   " ": "SPACE" /* SPACE */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
@@ -268,7 +269,7 @@ var specialCharToCharType = ({ kind }) => {
   ).with("SPACE" /* SPACE */, () => ({ kind: "SPACE" /* SPACE */ })).with(
     "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
     () => ({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ })
-  ).exhaustive();
+  ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).exhaustive();
 };
 var tokenize = ({ input }) => {
   const tokens = [];
@@ -292,6 +293,13 @@ var tokenize = ({ input }) => {
     }).with({ kind: "SPACE" /* SPACE */ }, () => {
       tokens.push({ type: "WHITESPACE" /* WHITESPACE */, value: null });
       i2++;
+    }).with({ kind: "BACKSLASH" /* BACKSLASH */ }, () => {
+      const start = ++i2;
+      tokens.push({
+        type: "ESCAPED" /* ESCAPED */,
+        value: input.slice(start, start + 1)
+      });
+      i2++;
     }).exhaustive();
   }
   return tokens;
@@ -300,9 +308,14 @@ var tokensToArgs = ({ tokens }) => {
   const args = [];
   let currentArg = "";
   for (const token of tokens) {
-    M(token).with({ type: "QUOTED" /* QUOTED */ }, { type: "UNQUOTED" /* UNQUOTED */ }, (t2) => {
-      currentArg += t2.value;
-    }).with({ type: "WHITESPACE" /* WHITESPACE */ }, () => {
+    M(token).with(
+      { type: "QUOTED" /* QUOTED */ },
+      { type: "UNQUOTED" /* UNQUOTED */ },
+      { type: "ESCAPED" /* ESCAPED */ },
+      (t2) => {
+        currentArg += t2.value;
+      }
+    ).with({ type: "WHITESPACE" /* WHITESPACE */ }, () => {
       if (currentArg !== "") {
         args.push(currentArg);
         currentArg = "";
