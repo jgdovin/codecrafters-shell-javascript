@@ -3,14 +3,65 @@ var import_readline = require("readline");
 
 // src/utils.ts
 var import_fs = require("fs");
-
-// src/types.ts
-var SPECIAL_CHARS = {
-  "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
-  '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
-  " ": "SPACE" /* SPACE */
+var hasPermission = (path, mode = import_fs.constants.X_OK) => {
+  try {
+    (0, import_fs.accessSync)(path, mode);
+    return true;
+  } catch {
+    return false;
+  }
 };
-var specialChars = Object.keys(SPECIAL_CHARS);
+var checkPathForApp = ({
+  command
+}) => {
+  const paths = process.env.PATH.split(":");
+  for (const path of paths) {
+    const filePath = `${path}/${command}`;
+    if (hasPermission(filePath)) {
+      return filePath;
+    }
+  }
+  return null;
+};
+
+// src/main.ts
+var import_child_process = require("child_process");
+
+// src/built-ins.ts
+var import_process = require("process");
+var builtInMethods = {
+  echo: ({ args }) => {
+    console.log(args.slice(1).join(" "));
+  },
+  exit: ({ args }) => {
+    (0, import_process.exit)(args[1]);
+  },
+  type: ({ args }) => {
+    if (builtInCommands.includes(args[1])) {
+      console.log(`${args[1]} is a shell builtin`);
+      return;
+    }
+    const command = args[1];
+    const filePath = checkPathForApp({ command });
+    if (filePath) {
+      console.log(`${command} is ${filePath}`);
+      return;
+    }
+    console.log(`${args[1]}: not found`);
+  },
+  pwd: () => {
+    console.log(process.cwd());
+  },
+  cd: ({ args }) => {
+    try {
+      const path = args[1].replace("~", process.env.HOME);
+      process.chdir(path);
+    } catch (e2) {
+      console.log(`cd: ${args[1]}: No such file or directory`);
+    }
+  }
+};
+var builtInCommands = Object.keys(builtInMethods);
 
 // node_modules/ts-pattern/dist/index.js
 var t = Symbol.for("@ts-pattern/matcher");
@@ -194,27 +245,15 @@ function F(t2) {
   throw new I(t2);
 }
 
-// src/utils.ts
-var hasPermission = (path, mode = import_fs.constants.X_OK) => {
-  try {
-    (0, import_fs.accessSync)(path, mode);
-    return true;
-  } catch {
-    return false;
-  }
+// src/types.ts
+var SPECIAL_CHARS = {
+  "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
+  '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
+  " ": "SPACE" /* SPACE */
 };
-var checkPathForApp = ({
-  command
-}) => {
-  const paths = process.env.PATH.split(":");
-  for (const path of paths) {
-    const filePath = `${path}/${command}`;
-    if (hasPermission(filePath)) {
-      return filePath;
-    }
-  }
-  return null;
-};
+var specialChars = Object.keys(SPECIAL_CHARS);
+
+// src/lexer.ts
 var classifyChar = ({ char }) => {
   if (char in SPECIAL_CHARS) {
     const kind = SPECIAL_CHARS[char];
@@ -273,45 +312,6 @@ var tokensToArgs = ({ tokens }) => {
   if (currentArg !== "") args.push(currentArg);
   return args;
 };
-
-// src/main.ts
-var import_child_process = require("child_process");
-
-// src/built-ins.ts
-var import_process = require("process");
-var builtInMethods = {
-  echo: ({ args }) => {
-    console.log(args.slice(1).join(" "));
-  },
-  exit: ({ args }) => {
-    (0, import_process.exit)(args[1]);
-  },
-  type: ({ args }) => {
-    if (builtInCommands.includes(args[1])) {
-      console.log(`${args[1]} is a shell builtin`);
-      return;
-    }
-    const command = args[1];
-    const filePath = checkPathForApp({ command });
-    if (filePath) {
-      console.log(`${command} is ${filePath}`);
-      return;
-    }
-    console.log(`${args[1]}: not found`);
-  },
-  pwd: () => {
-    console.log(process.cwd());
-  },
-  cd: ({ args }) => {
-    try {
-      const path = args[1].replace("~", process.env.HOME);
-      process.chdir(path);
-    } catch (e2) {
-      console.log(`cd: ${args[1]}: No such file or directory`);
-    }
-  }
-};
-var builtInCommands = Object.keys(builtInMethods);
 
 // src/main.ts
 var rl = (0, import_readline.createInterface)({

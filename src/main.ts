@@ -1,7 +1,8 @@
 import { createInterface } from "readline";
-import { checkPathForApp, tokenize, tokensToArgs } from "./utils";
+import { checkPathForApp } from "./utils";
 import { spawnSync } from "child_process";
 import { builtInCommands, builtInMethods } from "./built-ins";
+import { tokensToArgs, tokenize } from "./lexer";
 
 const rl = createInterface({
   input: process.stdin,
