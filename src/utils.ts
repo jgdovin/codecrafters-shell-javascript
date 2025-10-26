@@ -62,10 +62,10 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
     const charType = classifyChar({ char: input[i] });
     match(charType)
       .with({ kind: CharEnum.SINGLE_QUOTE }, () => {
-        const start = ++i; // ignore opening quote
+        const start = ++i;
         while (i < input.length && input[i] !== "'") i++;
         tokens.push({ type: TokenEnum.QUOTED, value: input.slice(start, i) });
-        i++; // ignore closing quote
+        i++;
       })
       .with({ kind: CharEnum.DOUBLE_QUOTE }, () => {
         const start = ++i;
