@@ -31,6 +31,8 @@ const specialCharToCharType = ({ kind }: { kind: SpecialChars }): Char => {
     .with(CharEnum.BACKSLASH, () => ({ kind: CharEnum.BACKSLASH } as Char))
     .exhaustive();
 };
+const ESCAPE_CHARACTER = "\\";
+const ESCAPABLE_CHARACTERS = ['"', "\\"];
 
 export const tokenize = ({ input }: { input: string }): Token[] => {
   const tokens: Token[] = [];
@@ -45,9 +47,21 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         i++;
       })
       .with({ kind: CharEnum.DOUBLE_QUOTE }, () => {
-        const start = ++i;
-        while (i < input.length && input[i] !== '"') i++;
-        tokens.push({ type: TokenEnum.QUOTED, value: input.slice(start, i) });
+        let output = "";
+        i++;
+        while (i < input.length && input[i] !== '"') {
+          if (
+            input[i] === ESCAPE_CHARACTER &&
+            ESCAPABLE_CHARACTERS.includes(input[i + 1])
+          ) {
+            output += input[i + 1];
+            i += 2;
+            continue;
+          }
+          output += input[i];
+          i++;
+        }
+        tokens.push({ type: TokenEnum.QUOTED, value: output });
         i++;
       })
       .with({ kind: CharEnum.REGULAR }, () => {
@@ -60,12 +74,11 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         i++;
       })
       .with({ kind: CharEnum.BACKSLASH }, () => {
-        const start = ++i;
         tokens.push({
           type: TokenEnum.ESCAPED,
-          value: input.slice(start, start + 1),
+          value: input.slice(i + 1, i + 2),
         });
-        i++;
+        i += 2;
       })
       .exhaustive();
   }

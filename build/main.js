@@ -271,6 +271,8 @@ var specialCharToCharType = ({ kind }) => {
     () => ({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ })
   ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).exhaustive();
 };
+var ESCAPE_CHARACTER = "\\";
+var ESCAPABLE_CHARACTERS = ['"', "\\"];
 var tokenize = ({ input }) => {
   const tokens = [];
   let i2 = 0;
@@ -282,9 +284,18 @@ var tokenize = ({ input }) => {
       tokens.push({ type: "QUOTED" /* QUOTED */, value: input.slice(start, i2) });
       i2++;
     }).with({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ }, () => {
-      const start = ++i2;
-      while (i2 < input.length && input[i2] !== '"') i2++;
-      tokens.push({ type: "QUOTED" /* QUOTED */, value: input.slice(start, i2) });
+      let output = "";
+      i2++;
+      while (i2 < input.length && input[i2] !== '"') {
+        if (input[i2] === ESCAPE_CHARACTER && ESCAPABLE_CHARACTERS.includes(input[i2 + 1])) {
+          output += input[i2 + 1];
+          i2 += 2;
+          continue;
+        }
+        output += input[i2];
+        i2++;
+      }
+      tokens.push({ type: "QUOTED" /* QUOTED */, value: output });
       i2++;
     }).with({ kind: "REGULAR" /* REGULAR */ }, () => {
       const start = i2;
@@ -294,12 +305,11 @@ var tokenize = ({ input }) => {
       tokens.push({ type: "WHITESPACE" /* WHITESPACE */, value: null });
       i2++;
     }).with({ kind: "BACKSLASH" /* BACKSLASH */ }, () => {
-      const start = ++i2;
       tokens.push({
         type: "ESCAPED" /* ESCAPED */,
-        value: input.slice(start, start + 1)
+        value: input.slice(i2 + 1, i2 + 2)
       });
-      i2++;
+      i2 += 2;
     }).exhaustive();
   }
   return tokens;
