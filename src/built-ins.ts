@@ -1,12 +1,10 @@
 import { exit } from "process";
 import { checkPathForApp } from "./utils";
-interface Args {
-  args: string[];
-}
+import { Args, BuiltInMethod } from "./types";
 
-export const builtInMethods = {
+export const builtInMethods: Record<string, BuiltInMethod> = {
   echo: ({ args }: Args) => {
-    console.log(args.slice(1).join(" "));
+    console.log(args.join(" "));
   },
   exit: ({ args }: Args) => {
     exit(args[1]);
@@ -33,7 +31,7 @@ export const builtInMethods = {
   },
   cd: ({ args }: Args) => {
     try {
-      const path = args[1].replace("~", process.env.HOME);
+      const path = args[0].replace("~", process.env.HOME);
       process.chdir(path);
     } catch (e) {
       console.log(`cd: ${args[1]}: No such file or directory`);

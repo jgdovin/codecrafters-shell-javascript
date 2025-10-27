@@ -7,6 +7,7 @@ import {
   Char,
   SPECIAL_CHARS,
   SpecialChars,
+  Instruction,
 } from "./types";
 
 const classifyChar = ({ char }: { char: string }): Char => {
@@ -29,6 +30,7 @@ const specialCharToCharType = ({ kind }: { kind: SpecialChars }): Char => {
       () => ({ kind: CharEnum.DOUBLE_QUOTE } as Char)
     )
     .with(CharEnum.BACKSLASH, () => ({ kind: CharEnum.BACKSLASH } as Char))
+    .with(CharEnum.GT_SIGN, () => ({ kind: CharEnum.GT_SIGN } as Char))
     .exhaustive();
 };
 const ESCAPE_CHARACTER = "\\";
@@ -37,6 +39,7 @@ const ESCAPABLE_CHARACTERS = ['"', "\\"];
 export const tokenize = ({ input }: { input: string }): Token[] => {
   const tokens: Token[] = [];
   let i = 0;
+
   while (i < input.length) {
     const charType = classifyChar({ char: input[i] });
     match(charType)
@@ -70,7 +73,6 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         tokens.push({ type: TokenEnum.UNQUOTED, value: input.slice(start, i) });
       })
       .with({ kind: CharEnum.SPACE }, () => {
-        tokens.push({ type: TokenEnum.WHITESPACE, value: null });
         i++;
       })
       .with({ kind: CharEnum.BACKSLASH }, () => {
@@ -80,34 +82,65 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         });
         i += 2;
       })
+      .with({ kind: CharEnum.GT_SIGN }, () => {
+        tokens.push({ type: TokenEnum.OPERATOR, value: input[i] });
+        i++;
+      })
       .exhaustive();
   }
+
   return tokens;
 };
 
-export const tokensToArgs = ({ tokens }: { tokens: Token[] }): string[] => {
-  const args: string[] = [];
-  let currentArg = "";
+const operators = {
+  ">": () => {},
+};
 
-  for (const token of tokens) {
+export const tokensToInstruction = ({
+  tokens,
+}: {
+  tokens: Token[];
+}): Instruction => {
+  const output: Instruction = {
+    command: tokens.shift().value,
+    args: [],
+    redirectTo: null,
+  };
+  let shouldBreak = false;
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (shouldBreak) break;
+
+    const token = tokens[i];
+
     match(token)
       .with(
         { type: TokenEnum.QUOTED },
         { type: TokenEnum.UNQUOTED },
         { type: TokenEnum.ESCAPED },
-        (t) => {
-          currentArg += t.value;
+        (token) => {
+          output.args.push(token.value);
         }
       )
-      .with({ type: TokenEnum.WHITESPACE }, () => {
-        if (currentArg !== "") {
-          args.push(currentArg);
-          currentArg = "";
+      .with({ type: TokenEnum.WHITESPACE }, () => {})
+      .with({ type: TokenEnum.OPERATOR }, () => {
+        const isValidOperator = Object.keys(SPECIAL_CHARS).includes(
+          token.value
+        );
+
+        if (!isValidOperator) throw new Error("Invalid operator detected");
+
+        if (SPECIAL_CHARS[token.value] === CharEnum.GT_SIGN) {
+          const redirectTo = tokens
+            .slice(i + 1, tokens.length)
+            .map((token) => token.value)
+            .join(" ");
+          output.redirectTo = redirectTo;
+          shouldBreak = true;
         }
       })
       .exhaustive();
   }
-  if (currentArg !== "") args.push(currentArg);
 
-  return args;
+  return output;
 };

@@ -31,7 +31,7 @@ var import_child_process = require("child_process");
 var import_process = require("process");
 var builtInMethods = {
   echo: ({ args }) => {
-    console.log(args.slice(1).join(" "));
+    console.log(args.join(" "));
   },
   exit: ({ args }) => {
     (0, import_process.exit)(args[1]);
@@ -54,7 +54,7 @@ var builtInMethods = {
   },
   cd: ({ args }) => {
     try {
-      const path = args[1].replace("~", process.env.HOME);
+      const path = args[0].replace("~", process.env.HOME);
       process.chdir(path);
     } catch (e2) {
       console.log(`cd: ${args[1]}: No such file or directory`);
@@ -250,7 +250,8 @@ var SPECIAL_CHARS = {
   "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
   '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
   "\\": "BACKSLASH" /* BACKSLASH */,
-  " ": "SPACE" /* SPACE */
+  " ": "SPACE" /* SPACE */,
+  ">": "GT_SIGN" /* GT_SIGN */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
 
@@ -269,7 +270,7 @@ var specialCharToCharType = ({ kind }) => {
   ).with("SPACE" /* SPACE */, () => ({ kind: "SPACE" /* SPACE */ })).with(
     "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
     () => ({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ })
-  ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).exhaustive();
+  ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).with("GT_SIGN" /* GT_SIGN */, () => ({ kind: "GT_SIGN" /* GT_SIGN */ })).exhaustive();
 };
 var ESCAPE_CHARACTER = "\\";
 var ESCAPABLE_CHARACTERS = ['"', "\\"];
@@ -302,7 +303,6 @@ var tokenize = ({ input }) => {
       while (i2 < input.length && !specialChars.includes(input[i2])) i2++;
       tokens.push({ type: "UNQUOTED" /* UNQUOTED */, value: input.slice(start, i2) });
     }).with({ kind: "SPACE" /* SPACE */ }, () => {
-      tokens.push({ type: "WHITESPACE" /* WHITESPACE */, value: null });
       i2++;
     }).with({ kind: "BACKSLASH" /* BACKSLASH */ }, () => {
       tokens.push({
@@ -310,30 +310,46 @@ var tokenize = ({ input }) => {
         value: input.slice(i2 + 1, i2 + 2)
       });
       i2 += 2;
+    }).with({ kind: "GT_SIGN" /* GT_SIGN */ }, () => {
+      tokens.push({ type: "OPERATOR" /* OPERATOR */, value: input[i2] });
+      i2++;
     }).exhaustive();
   }
   return tokens;
 };
-var tokensToArgs = ({ tokens }) => {
-  const args = [];
-  let currentArg = "";
-  for (const token of tokens) {
+var tokensToInstruction = ({
+  tokens
+}) => {
+  const output = {
+    command: tokens.shift().value,
+    args: [],
+    redirectTo: null
+  };
+  let shouldBreak = false;
+  for (let i2 = 0; i2 < tokens.length; i2++) {
+    if (shouldBreak) break;
+    const token = tokens[i2];
     M(token).with(
       { type: "QUOTED" /* QUOTED */ },
       { type: "UNQUOTED" /* UNQUOTED */ },
       { type: "ESCAPED" /* ESCAPED */ },
-      (t2) => {
-        currentArg += t2.value;
+      (token2) => {
+        output.args.push(token2.value);
       }
     ).with({ type: "WHITESPACE" /* WHITESPACE */ }, () => {
-      if (currentArg !== "") {
-        args.push(currentArg);
-        currentArg = "";
+    }).with({ type: "OPERATOR" /* OPERATOR */ }, () => {
+      const isValidOperator = Object.keys(SPECIAL_CHARS).includes(
+        token.value
+      );
+      if (!isValidOperator) throw new Error("Invalid operator detected");
+      if (SPECIAL_CHARS[token.value] === "GT_SIGN" /* GT_SIGN */) {
+        const redirectTo = tokens.slice(i2 + 1, tokens.length).map((token2) => token2.value).join(" ");
+        output.redirectTo = redirectTo;
+        shouldBreak = true;
       }
     }).exhaustive();
   }
-  if (currentArg !== "") args.push(currentArg);
-  return args;
+  return output;
 };
 
 // src/main.ts
@@ -341,20 +357,25 @@ var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
 });
+var executeCommand = ({ tokens }) => {
+  const instruction = tokensToInstruction({ tokens });
+  const { command } = instruction;
+  const filePath = checkPathForApp({ command });
+  if (!filePath) throw new Error("command not found");
+  (0, import_child_process.spawnSync)(`${command}`, instruction.args, {
+    encoding: "utf-8",
+    stdio: "inherit"
+  });
+};
 var parsePrompt = async (answer) => {
-  const args = tokensToArgs({ tokens: tokenize({ input: answer }) });
-  if (builtInCommands.includes(args[0])) {
-    builtInMethods[args[0]]({ args });
+  const tokens = tokenize({ input: answer });
+  const instruction = tokensToInstruction({ tokens });
+  if (builtInCommands.includes(instruction.command)) {
+    builtInMethods[instruction.command]({ args: instruction.args });
     return;
   }
-  const command = args.shift();
-  const filePath = checkPathForApp({ command });
   try {
-    if (!filePath) throw new Error("command not found");
-    (0, import_child_process.spawnSync)(`${command}`, args, {
-      encoding: "utf-8",
-      stdio: "inherit"
-    });
+    executeCommand({ tokens });
   } catch (e2) {
     console.log(`${answer}: ${e2.message}`);
   }

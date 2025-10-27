@@ -2,30 +2,39 @@ import { createInterface } from "readline";
 import { checkPathForApp } from "./utils";
 import { spawnSync } from "child_process";
 import { builtInCommands, builtInMethods } from "./built-ins";
-import { tokensToArgs, tokenize } from "./lexer";
+import { tokensToInstruction, tokenize } from "./lexer";
+import { CharEnum, SPECIAL_CHARS, Token, TokenEnum } from "./types";
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
 });
 
-const parsePrompt = async (answer: string) => {
-  const args = tokensToArgs({ tokens: tokenize({ input: answer }) });
+const executeCommand = ({ tokens }: { tokens: Token[] }) => {
+  const instruction = tokensToInstruction({ tokens });
+  const { command } = instruction;
 
-  if (builtInCommands.includes(args[0])) {
-    builtInMethods[args[0]]({ args });
+  const filePath = checkPathForApp({ command });
+
+  if (!filePath) throw new Error("command not found");
+
+  spawnSync(`${command}`, instruction.args, {
+    encoding: "utf-8",
+    stdio: "inherit",
+  });
+};
+
+const parsePrompt = async (answer: string) => {
+  const tokens = tokenize({ input: answer });
+  const instruction = tokensToInstruction({ tokens });
+
+  if (builtInCommands.includes(instruction.command)) {
+    builtInMethods[instruction.command]({ args: instruction.args });
     return;
   }
 
-  const command = args.shift();
-  const filePath = checkPathForApp({ command });
-
   try {
-    if (!filePath) throw new Error("command not found");
-    spawnSync(`${command}`, args, {
-      encoding: "utf-8",
-      stdio: "inherit",
-    });
+    executeCommand({ tokens });
   } catch (e) {
     console.log(`${answer}: ${e.message}`);
   }
