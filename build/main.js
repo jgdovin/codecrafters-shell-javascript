@@ -267,11 +267,15 @@ var SPECIAL_CHARS = {
   " ": "SPACE" /* SPACE */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
-var OPERATORS = ["1>", ">", "2>"];
+var OPERATORS = ["1>", ">", "2>", ">>", "1>>"];
 
 // src/operators.ts
 var redirectOutput = ({ output, tokens, cursor }) => {
   output.redirectOutputTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+  return tokens.length;
+};
+var appendOutput = ({ output, tokens, cursor }) => {
+  output.appendOutputTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
   return tokens.length;
 };
 var redirectError = ({ output, tokens, cursor }) => {
@@ -281,7 +285,9 @@ var redirectError = ({ output, tokens, cursor }) => {
 var operatorMethods = {
   ">": redirectOutput,
   "1>": redirectOutput,
-  "2>": redirectError
+  "2>": redirectError,
+  "1>>": appendOutput,
+  ">>": appendOutput
 };
 var matchOperator = ({
   input,
@@ -375,7 +381,8 @@ var tokensToInstruction = ({
     command: command.value,
     args: [],
     redirectOutputTo: null,
-    redirectErrorTo: null
+    redirectErrorTo: null,
+    appendOutputTo: null
   };
   let currentArg = "";
   for (let i2 = 0; i2 < tokens.length; i2++) {
@@ -426,11 +433,20 @@ var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
 });
+var getStdoutTarget = ({ instruction }) => {
+  if (instruction.redirectOutputTo) {
+    return (0, import_fs2.openSync)(instruction.redirectOutputTo, "w");
+  }
+  if (instruction.appendOutputTo) {
+    return (0, import_fs2.openSync)(instruction.appendOutputTo, "a");
+  }
+  return "inherit";
+};
 var executeCommand = ({ instruction }) => {
   const { command } = instruction;
   const filePath = checkPathForApp({ command });
   if (!filePath) throw new Error(`${command}: command not found`);
-  const stdOutTarget = instruction.redirectOutputTo ? (0, import_fs2.openSync)(instruction.redirectOutputTo, "w") : "inherit";
+  const stdOutTarget = getStdoutTarget({ instruction });
   const errorOutTarget = instruction.redirectErrorTo ? (0, import_fs2.openSync)(instruction.redirectErrorTo, "w") : "inherit";
   (0, import_child_process.spawnSync)(`${command}`, instruction.args, {
     encoding: "utf-8",
@@ -448,14 +464,16 @@ var parsePrompt = async (answer) => {
       const output = builtInMethods[instruction.command]({
         instruction
       });
-      if (instruction.redirectOutputTo) {
-        (0, import_fs2.writeFileSync)(instruction.redirectOutputTo, `${output}
+      const target = getStdoutTarget({ instruction });
+      if (target !== "inherit") {
+        (0, import_fs2.writeSync)(target, `${output}
 `);
         return;
       }
-      if (output) {
-        console.log(output);
+      if (!output) {
+        return;
       }
+      console.log(output);
       return;
     }
     executeCommand({ instruction });

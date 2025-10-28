@@ -4,12 +4,22 @@ import { spawnSync } from "child_process";
 import { builtInCommands, builtInMethods } from "./built-ins";
 import { tokensToInstruction, tokenize } from "./lexer";
 import { Instruction } from "./types";
-import { openSync, writeFileSync } from "fs";
+import { openSync, writeFileSync, writeSync } from "fs";
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+
+const getStdoutTarget = ({ instruction }: { instruction: Instruction }) => {
+  if (instruction.redirectOutputTo) {
+    return openSync(instruction.redirectOutputTo, "w");
+  }
+  if (instruction.appendOutputTo) {
+    return openSync(instruction.appendOutputTo, "a");
+  }
+  return "inherit";
+};
 
 const executeCommand = ({ instruction }: { instruction: Instruction }) => {
   const { command } = instruction;
@@ -17,9 +27,7 @@ const executeCommand = ({ instruction }: { instruction: Instruction }) => {
   const filePath = checkPathForApp({ command });
 
   if (!filePath) throw new Error(`${command}: command not found`);
-  const stdOutTarget = instruction.redirectOutputTo
-    ? openSync(instruction.redirectOutputTo, "w")
-    : "inherit";
+  const stdOutTarget = getStdoutTarget({ instruction });
 
   const errorOutTarget = instruction.redirectErrorTo
     ? openSync(instruction.redirectErrorTo, "w")
@@ -47,13 +55,18 @@ const parsePrompt = async (answer: string) => {
         instruction,
       });
 
-      if (instruction.redirectOutputTo) {
-        writeFileSync(instruction.redirectOutputTo, `${output}\n`);
+      const target = getStdoutTarget({ instruction });
+
+      if (target !== "inherit") {
+        writeSync(target, `${output}\n`);
         return;
       }
-      if (output) {
-        console.log(output);
+
+      if (!output) {
+        return;
       }
+
+      console.log(output);
       return;
     }
 
