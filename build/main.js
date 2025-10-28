@@ -115,7 +115,7 @@ var builtInMethods = {
 var checkBuiltinsForAutocomplete = ({
   line
 }) => {
-  return builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command} `);
+  return builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command}`);
 };
 
 // node_modules/ts-pattern/dist/index.js
@@ -476,18 +476,23 @@ var tokensToInstruction = ({
 
 // src/main.ts
 var import_fs2 = require("fs");
-var completer = (line) => {
+var completer = (line, callback) => {
   const matches = /* @__PURE__ */ new Set();
   checkBuiltinsForAutocomplete({ line }).forEach(
     (command) => matches.add(command)
   );
-  checkPathForAutocomplete({ line }).forEach(
-    (command) => matches.add(`${command} `)
-  );
+  checkPathForAutocomplete({ line }).forEach((command) => matches.add(command));
+  const matchArr = Array.from(matches).sort();
   if (!matches.size) {
     process.stdout.write("\x07");
+    return callback(null, [[], line]);
   }
-  return [matches.size ? Array.from(matches) : builtInCommands, line];
+  if (matchArr.length === 1) {
+    return callback(null, [[`${matchArr[0]} `], line]);
+  }
+  process.stdout.write("\x07");
+  process.stdout.write("\r\n" + matchArr.join("  ") + "\r\n$ " + line);
+  return callback(null, [[], line]);
 };
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,

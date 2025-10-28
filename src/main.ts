@@ -1,8 +1,7 @@
-import { createInterface } from "readline";
+import { AsyncCompleter, createInterface } from "readline";
 import { checkPathForApp, checkPathForAutocomplete } from "./utils";
 import { spawnSync } from "child_process";
 import {
-  builtInCommands,
   builtInMethods,
   checkBuiltinsForAutocomplete,
   isBuiltInCommand,
@@ -11,20 +10,27 @@ import { tokensToInstruction, tokenize } from "./lexer";
 import { Instruction } from "./types";
 import { openSync, writeFileSync, writeSync } from "fs";
 
-const completer = (line: string) => {
+const completer: AsyncCompleter = (line, callback) => {
   const matches: Set<string> = new Set();
 
   checkBuiltinsForAutocomplete({ line }).forEach((command) =>
     matches.add(command)
   );
-  checkPathForAutocomplete({ line }).forEach((command) =>
-    matches.add(`${command} `)
-  );
+  checkPathForAutocomplete({ line }).forEach((command) => matches.add(command));
+
+  const matchArr = Array.from(matches).sort();
 
   if (!matches.size) {
     process.stdout.write("\u0007");
+    return callback(null, [[], line]);
   }
-  return [matches.size ? Array.from(matches) : builtInCommands, line];
+
+  if (matchArr.length === 1) {
+    return callback(null, [[`${matchArr[0]} `], line]);
+  }
+  process.stdout.write("\u0007");
+  process.stdout.write("\r\n" + matchArr.join("  ") + "\r\n$ " + line);
+  return callback(null, [[], line]);
 };
 
 const rl = createInterface({

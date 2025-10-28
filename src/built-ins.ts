@@ -67,5 +67,5 @@ export const checkBuiltinsForAutocomplete = ({
 }): string[] => {
   return builtInCommands
     .filter((command) => command.startsWith(line))
-    .map((command) => `${command} `);
+    .map((command) => `${command}`);
 };
