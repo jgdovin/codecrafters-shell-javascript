@@ -6,7 +6,16 @@
 #
 # Learn more: https://codecrafters.io/program-interface
 
-set -e # Exit early if any commands fail
+# set -e # Exit early if any commands fail
+
+# Lint before executing to prevent bad code.
+OUTPUT=$(FORCE_COLOR=1 npm run lint 2>&1)
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "$OUTPUT"
+  exit $EXIT_CODE
+fi
 
 # Copied from .codecrafters/run.sh
 #

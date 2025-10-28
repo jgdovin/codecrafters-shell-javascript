@@ -3,15 +3,14 @@ export type Token =
   | { type: TokenEnum.UNQUOTED; value: string }
   | { type: TokenEnum.ESCAPED; value: string }
   | { type: TokenEnum.WHITESPACE; value: null }
-  | { type: TokenEnum.OPERATOR; value: string };
+  | { type: TokenEnum.OPERATOR; value: Operators };
 
 export type Char =
   | { kind: CharEnum.SINGLE_QUOTE }
   | { kind: CharEnum.DOUBLE_QUOTE }
   | { kind: CharEnum.BACKSLASH }
   | { kind: CharEnum.SPACE }
-  | { kind: CharEnum.REGULAR; char: string }
-  | { kind: CharEnum.GT_SIGN; char: string };
+  | { kind: CharEnum.REGULAR; char: string };
 
 export enum CharEnum {
   BACKSLASH = "BACKSLASH",
@@ -35,21 +34,35 @@ export const SPECIAL_CHARS = {
   '"': CharEnum.DOUBLE_QUOTE,
   "\\": CharEnum.BACKSLASH,
   " ": CharEnum.SPACE,
-  ">": CharEnum.GT_SIGN,
 } as const;
 
 export const specialChars = Object.keys(SPECIAL_CHARS);
 
 export type SpecialChars = (typeof SPECIAL_CHARS)[keyof typeof SPECIAL_CHARS];
 
+export const OPERATORS = ["1>", ">"] as const;
+
+export type Operators = (typeof OPERATORS)[number];
 export interface Instruction {
   command: string;
   args: string[];
   redirectTo: string | null;
 }
 
-export interface Args {
-  args: string[];
+export interface BuiltInMethodArgs {
+  instruction: Instruction;
 }
 
-export type BuiltInMethod = ({ args }: Args) => void;
+export type BuiltInMethod = ({
+  instruction,
+}: BuiltInMethodArgs) => string | void;
+
+export type OperatorMethod = ({
+  output,
+  tokens,
+  cursor,
+}: {
+  output: Instruction;
+  tokens: Token[];
+  cursor: number;
+}) => boolean;

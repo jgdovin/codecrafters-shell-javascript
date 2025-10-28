@@ -1,3 +1,5 @@
+"use strict";
+
 // src/main.ts
 var import_readline = require("readline");
 
@@ -30,34 +32,43 @@ var import_child_process = require("child_process");
 // src/built-ins.ts
 var import_process = require("process");
 var builtInMethods = {
-  echo: ({ args }) => {
-    console.log(args.join(" "));
+  echo: ({ instruction }) => {
+    return instruction.args.join(" ");
   },
-  exit: ({ args }) => {
-    (0, import_process.exit)(args[1]);
+  exit: ({ instruction }) => {
+    (0, import_process.exit)(instruction.args.join(" "));
   },
-  type: ({ args }) => {
-    if (builtInCommands.includes(args[1])) {
-      console.log(`${args[1]} is a shell builtin`);
-      return;
+  type: ({ instruction }) => {
+    const { command, args } = instruction;
+    const argsStr = args.join(" ");
+    if (!argsStr) {
+      throw new Error("No command found, something went wrong.");
     }
-    const command = args[1];
-    const filePath = checkPathForApp({ command });
+    if (builtInCommands.includes(argsStr)) {
+      return `${argsStr} is a shell builtin`;
+    }
+    const filePath = checkPathForApp({ command: args.join(" ") });
     if (filePath) {
-      console.log(`${command} is ${filePath}`);
-      return;
+      return `${argsStr} is ${filePath}`;
     }
-    console.log(`${args[1]}: not found`);
+    return `${args[0]}: not found`;
   },
   pwd: () => {
-    console.log(process.cwd());
+    return process.cwd();
   },
-  cd: ({ args }) => {
+  cd: ({ instruction }) => {
+    const { args } = instruction;
     try {
-      const path = args[0].replace("~", process.env.HOME);
+      const homeDir = process.env.HOME;
+      if (!homeDir) {
+        throw new Error(
+          "No home directory set for current user... How did that happen?"
+        );
+      }
+      const path = args[0].replace("~", homeDir);
       process.chdir(path);
     } catch (e2) {
-      console.log(`cd: ${args[1]}: No such file or directory`);
+      return `cd: ${args[0]}: No such file or directory`;
     }
   }
 };
@@ -250,10 +261,37 @@ var SPECIAL_CHARS = {
   "'": "SINGLE_QUOTE" /* SINGLE_QUOTE */,
   '"': "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
   "\\": "BACKSLASH" /* BACKSLASH */,
-  " ": "SPACE" /* SPACE */,
-  ">": "GT_SIGN" /* GT_SIGN */
+  " ": "SPACE" /* SPACE */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
+var OPERATORS = ["1>", ">"];
+
+// src/operators.ts
+var redirectOutput = ({
+  output,
+  tokens,
+  cursor
+}) => {
+  output.redirectTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+  return true;
+};
+var operatorMethods = {
+  ">": redirectOutput,
+  "1>": redirectOutput
+};
+var matchOperator = ({
+  input,
+  cursor
+}) => {
+  const sortedOps = [...OPERATORS].sort((a2, b2) => b2.length - a2.length);
+  for (const op of sortedOps) {
+    const slice = input.slice(cursor, cursor + op.length);
+    if (slice === op) {
+      return op;
+    }
+  }
+  return null;
+};
 
 // src/lexer.ts
 var classifyChar = ({ char }) => {
@@ -270,7 +308,7 @@ var specialCharToCharType = ({ kind }) => {
   ).with("SPACE" /* SPACE */, () => ({ kind: "SPACE" /* SPACE */ })).with(
     "DOUBLE_QUOTE" /* DOUBLE_QUOTE */,
     () => ({ kind: "DOUBLE_QUOTE" /* DOUBLE_QUOTE */ })
-  ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).with("GT_SIGN" /* GT_SIGN */, () => ({ kind: "GT_SIGN" /* GT_SIGN */ })).exhaustive();
+  ).with("BACKSLASH" /* BACKSLASH */, () => ({ kind: "BACKSLASH" /* BACKSLASH */ })).exhaustive();
 };
 var ESCAPE_CHARACTER = "\\";
 var ESCAPABLE_CHARACTERS = ['"', "\\"];
@@ -278,6 +316,12 @@ var tokenize = ({ input }) => {
   const tokens = [];
   let i2 = 0;
   while (i2 < input.length) {
+    const operator = matchOperator({ input, cursor: i2 });
+    if (operator) {
+      tokens.push({ type: "OPERATOR" /* OPERATOR */, value: operator });
+      i2 += operator.length;
+      continue;
+    }
     const charType = classifyChar({ char: input[i2] });
     M(charType).with({ kind: "SINGLE_QUOTE" /* SINGLE_QUOTE */ }, () => {
       const start = ++i2;
@@ -303,6 +347,7 @@ var tokenize = ({ input }) => {
       while (i2 < input.length && !specialChars.includes(input[i2])) i2++;
       tokens.push({ type: "UNQUOTED" /* UNQUOTED */, value: input.slice(start, i2) });
     }).with({ kind: "SPACE" /* SPACE */ }, () => {
+      tokens.push({ type: "WHITESPACE" /* WHITESPACE */, value: null });
       i2++;
     }).with({ kind: "BACKSLASH" /* BACKSLASH */ }, () => {
       tokens.push({
@@ -310,74 +355,107 @@ var tokenize = ({ input }) => {
         value: input.slice(i2 + 1, i2 + 2)
       });
       i2 += 2;
-    }).with({ kind: "GT_SIGN" /* GT_SIGN */ }, () => {
-      tokens.push({ type: "OPERATOR" /* OPERATOR */, value: input[i2] });
-      i2++;
     }).exhaustive();
   }
   return tokens;
 };
+var shouldBreak = false;
 var tokensToInstruction = ({
   tokens
 }) => {
+  const command = tokens.shift();
+  if (!command?.value) {
+    throw new Error("We somehow do not have a command");
+  }
   const output = {
-    command: tokens.shift().value,
+    command: command.value,
     args: [],
     redirectTo: null
   };
-  let shouldBreak = false;
+  let currentArg = "";
   for (let i2 = 0; i2 < tokens.length; i2++) {
-    if (shouldBreak) break;
+    if (shouldBreak) {
+      shouldBreak = false;
+      break;
+    }
     const token = tokens[i2];
     M(token).with(
       { type: "QUOTED" /* QUOTED */ },
       { type: "UNQUOTED" /* UNQUOTED */ },
       { type: "ESCAPED" /* ESCAPED */ },
       (token2) => {
-        output.args.push(token2.value);
+        currentArg += token2.value;
       }
     ).with({ type: "WHITESPACE" /* WHITESPACE */ }, () => {
-    }).with({ type: "OPERATOR" /* OPERATOR */ }, () => {
-      const isValidOperator = Object.keys(SPECIAL_CHARS).includes(
-        token.value
-      );
-      if (!isValidOperator) throw new Error("Invalid operator detected");
-      if (SPECIAL_CHARS[token.value] === "GT_SIGN" /* GT_SIGN */) {
-        const redirectTo = tokens.slice(i2 + 1, tokens.length).map((token2) => token2.value).join(" ");
-        output.redirectTo = redirectTo;
-        shouldBreak = true;
+      if (currentArg !== "") {
+        output.args.push(currentArg);
+        currentArg = "";
       }
+    }).with({ type: "OPERATOR" /* OPERATOR */ }, (token2) => {
+      if (currentArg !== "") {
+        output.args.push(currentArg);
+        currentArg = "";
+      }
+      if (!token2.value) {
+        throw new Error("No token found. Should be unreachable.");
+      }
+      if (token2.value in operatorMethods) {
+        shouldBreak = operatorMethods[token2.value]({
+          output,
+          tokens,
+          cursor: i2
+        });
+      }
+      return;
     }).exhaustive();
+  }
+  if (currentArg !== "") {
+    output.args.push(currentArg);
   }
   return output;
 };
 
 // src/main.ts
+var import_fs2 = require("fs");
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,
   output: process.stdout
 });
-var executeCommand = ({ tokens }) => {
-  const instruction = tokensToInstruction({ tokens });
+var executeCommand = ({ instruction }) => {
   const { command } = instruction;
   const filePath = checkPathForApp({ command });
   if (!filePath) throw new Error("command not found");
+  const stdOutTarget = instruction.redirectTo ? (0, import_fs2.openSync)(instruction.redirectTo, "w") : "inherit";
   (0, import_child_process.spawnSync)(`${command}`, instruction.args, {
     encoding: "utf-8",
-    stdio: "inherit"
+    stdio: ["inherit", stdOutTarget, "inherit"]
   });
 };
 var parsePrompt = async (answer) => {
   const tokens = tokenize({ input: answer });
   const instruction = tokensToInstruction({ tokens });
   if (builtInCommands.includes(instruction.command)) {
-    builtInMethods[instruction.command]({ args: instruction.args });
+    const output = builtInMethods[instruction.command]({
+      instruction
+    });
+    if (instruction.redirectTo) {
+      (0, import_fs2.writeFileSync)(instruction.redirectTo, `${output}
+`);
+      return;
+    }
+    if (output) {
+      console.log(output);
+    }
     return;
   }
   try {
-    executeCommand({ tokens });
+    executeCommand({ instruction });
   } catch (e2) {
-    console.log(`${answer}: ${e2.message}`);
+    if (e2 instanceof Error) {
+      console.log(`${answer}: ${e2.message}`);
+    } else {
+      console.log(`${answer}: An unknown error occured`);
+    }
   }
   return;
 };

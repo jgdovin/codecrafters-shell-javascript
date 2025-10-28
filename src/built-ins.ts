@@ -1,40 +1,54 @@
 import { exit } from "process";
 import { checkPathForApp } from "./utils";
-import { Args, BuiltInMethod } from "./types";
+import { BuiltInMethodArgs, BuiltInMethod } from "./types";
 
 export const builtInMethods: Record<string, BuiltInMethod> = {
-  echo: ({ args }: Args) => {
-    console.log(args.join(" "));
+  echo: ({ instruction }: BuiltInMethodArgs): string => {
+    return instruction.args.join(" ");
   },
-  exit: ({ args }: Args) => {
-    exit(args[1]);
+  exit: ({ instruction }: BuiltInMethodArgs): void => {
+    exit(instruction.args.join(" "));
   },
-  type: ({ args }: Args) => {
-    if (builtInCommands.includes(args[1])) {
-      console.log(`${args[1]} is a shell builtin`);
-      return;
+  type: ({ instruction }: BuiltInMethodArgs): string => {
+    const { args } = instruction;
+    const argsStr = args.join(" ");
+
+    if (!argsStr) {
+      throw new Error("No command found, something went wrong.");
     }
 
-    const command = args[1];
+    if (builtInCommands.includes(argsStr)) {
+      return `${argsStr} is a shell builtin`;
+    }
 
-    const filePath = checkPathForApp({ command });
+    const filePath = checkPathForApp({ command: args.join(" ") });
 
     if (filePath) {
-      console.log(`${command} is ${filePath}`);
-      return;
+      return `${argsStr} is ${filePath}`;
     }
 
-    console.log(`${args[1]}: not found`);
+    return `${args[0]}: not found`;
   },
-  pwd: () => {
-    console.log(process.cwd());
+  pwd: (): string => {
+    return process.cwd();
   },
-  cd: ({ args }: Args) => {
+  cd: ({ instruction }: BuiltInMethodArgs): string | void => {
+    const { args } = instruction;
+
     try {
-      const path = args[0].replace("~", process.env.HOME);
+      const homeDir = process.env.HOME;
+      if (!homeDir) {
+        throw new Error(
+          "No home directory set for current user... How did that happen?"
+        );
+      }
+      const path = args[0].replace("~", homeDir);
       process.chdir(path);
     } catch (e) {
-      console.log(`cd: ${args[1]}: No such file or directory`);
+      if (e instanceof Error) {
+        return `cd: ${args[0]}: No such file or directory`;
+      }
+      throw new Error("Unknown error");
     }
   },
 };

@@ -9,6 +9,7 @@ import {
   SpecialChars,
   Instruction,
 } from "./types";
+import { matchOperator, operatorMethods } from "./operators";
 
 const classifyChar = ({ char }: { char: string }): Char => {
   if (char in SPECIAL_CHARS) {
@@ -30,7 +31,6 @@ const specialCharToCharType = ({ kind }: { kind: SpecialChars }): Char => {
       () => ({ kind: CharEnum.DOUBLE_QUOTE } as Char)
     )
     .with(CharEnum.BACKSLASH, () => ({ kind: CharEnum.BACKSLASH } as Char))
-    .with(CharEnum.GT_SIGN, () => ({ kind: CharEnum.GT_SIGN } as Char))
     .exhaustive();
 };
 const ESCAPE_CHARACTER = "\\";
@@ -41,6 +41,14 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
   let i = 0;
 
   while (i < input.length) {
+    const operator = matchOperator({ input, cursor: i });
+
+    if (operator) {
+      tokens.push({ type: TokenEnum.OPERATOR, value: operator });
+      i += operator.length;
+      continue;
+    }
+
     const charType = classifyChar({ char: input[i] });
     match(charType)
       .with({ kind: CharEnum.SINGLE_QUOTE }, () => {
@@ -73,6 +81,7 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         tokens.push({ type: TokenEnum.UNQUOTED, value: input.slice(start, i) });
       })
       .with({ kind: CharEnum.SPACE }, () => {
+        tokens.push({ type: TokenEnum.WHITESPACE, value: null });
         i++;
       })
       .with({ kind: CharEnum.BACKSLASH }, () => {
@@ -82,34 +91,37 @@ export const tokenize = ({ input }: { input: string }): Token[] => {
         });
         i += 2;
       })
-      .with({ kind: CharEnum.GT_SIGN }, () => {
-        tokens.push({ type: TokenEnum.OPERATOR, value: input[i] });
-        i++;
-      })
       .exhaustive();
   }
 
   return tokens;
 };
 
-const operators = {
-  ">": () => {},
-};
+let shouldBreak = false;
 
 export const tokensToInstruction = ({
   tokens,
 }: {
   tokens: Token[];
 }): Instruction => {
+  const command = tokens.shift();
+
+  if (!command?.value) {
+    throw new Error("We somehow do not have a command");
+  }
+
   const output: Instruction = {
-    command: tokens.shift().value,
+    command: command.value,
     args: [],
     redirectTo: null,
   };
-  let shouldBreak = false;
 
+  let currentArg = "";
   for (let i = 0; i < tokens.length; i++) {
-    if (shouldBreak) break;
+    if (shouldBreak) {
+      shouldBreak = false;
+      break;
+    }
 
     const token = tokens[i];
 
@@ -119,28 +131,38 @@ export const tokensToInstruction = ({
         { type: TokenEnum.UNQUOTED },
         { type: TokenEnum.ESCAPED },
         (token) => {
-          output.args.push(token.value);
+          currentArg += token.value;
         }
       )
-      .with({ type: TokenEnum.WHITESPACE }, () => {})
-      .with({ type: TokenEnum.OPERATOR }, () => {
-        const isValidOperator = Object.keys(SPECIAL_CHARS).includes(
-          token.value
-        );
-
-        if (!isValidOperator) throw new Error("Invalid operator detected");
-
-        if (SPECIAL_CHARS[token.value] === CharEnum.GT_SIGN) {
-          const redirectTo = tokens
-            .slice(i + 1, tokens.length)
-            .map((token) => token.value)
-            .join(" ");
-          output.redirectTo = redirectTo;
-          shouldBreak = true;
+      .with({ type: TokenEnum.WHITESPACE }, () => {
+        if (currentArg !== "") {
+          output.args.push(currentArg);
+          currentArg = "";
         }
+      })
+      .with({ type: TokenEnum.OPERATOR }, (token) => {
+        if (currentArg !== "") {
+          output.args.push(currentArg);
+          currentArg = "";
+        }
+        if (!token.value) {
+          throw new Error("No token found. Should be unreachable.");
+        }
+
+        if (token.value in operatorMethods) {
+          shouldBreak = operatorMethods[token.value]({
+            output,
+            tokens,
+            cursor: i,
+          });
+        }
+        return;
       })
       .exhaustive();
   }
 
+  if (currentArg !== "") {
+    output.args.push(currentArg);
+  }
   return output;
 };
