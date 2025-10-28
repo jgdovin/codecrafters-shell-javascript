@@ -1,14 +1,22 @@
 import { createInterface } from "readline";
 import { checkPathForApp } from "./utils";
 import { spawnSync } from "child_process";
-import { builtInCommands, builtInMethods } from "./built-ins";
+import { builtInCommands, builtInMethods, isBuiltInCommand } from "./built-ins";
 import { tokensToInstruction, tokenize } from "./lexer";
 import { Instruction } from "./types";
 import { openSync, writeFileSync, writeSync } from "fs";
 
+const completer = (line: string) => {
+  const hits = builtInCommands
+    .filter((command) => command.startsWith(line))
+    .map((command) => `${command} `);
+  return [hits.length ? hits : builtInCommands, line];
+};
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
+  completer,
 });
 
 const getStdoutTarget = ({ instruction }: { instruction: Instruction }) => {
@@ -58,7 +66,7 @@ const parsePrompt = async (answer: string) => {
       writeFileSync(instruction.redirectErrorTo, "");
     }
 
-    if (builtInCommands.includes(instruction.command)) {
+    if (isBuiltInCommand(instruction.command)) {
       const output = builtInMethods[instruction.command]({
         instruction,
       });

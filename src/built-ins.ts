@@ -2,7 +2,14 @@ import { exit } from "process";
 import { checkPathForApp } from "./utils";
 import { BuiltInMethodArgs, BuiltInMethod } from "./types";
 
-export const builtInMethods: Record<string, BuiltInMethod> = {
+export const builtInCommands = ["echo", "exit", "type", "pwd", "cd"] as const;
+type BuiltInCommandName = (typeof builtInCommands)[number];
+
+export const isBuiltInCommand = (cmd: string): cmd is BuiltInCommandName => {
+  return builtInCommands.includes(cmd as BuiltInCommandName);
+};
+
+export const builtInMethods: Record<BuiltInCommandName, BuiltInMethod> = {
   echo: ({ instruction }: BuiltInMethodArgs): string => {
     return instruction.args.join(" ");
   },
@@ -17,7 +24,7 @@ export const builtInMethods: Record<string, BuiltInMethod> = {
       throw new Error("No command found, something went wrong.");
     }
 
-    if (builtInCommands.includes(argsStr)) {
+    if (isBuiltInCommand(argsStr) && builtInCommands.includes(argsStr)) {
       return `${argsStr} is a shell builtin`;
     }
 
@@ -51,6 +58,4 @@ export const builtInMethods: Record<string, BuiltInMethod> = {
       throw new Error("Unknown error");
     }
   },
-};
-
-export const builtInCommands = Object.keys(builtInMethods);
+} as const satisfies Record<string, BuiltInMethod>;

@@ -31,6 +31,10 @@ var import_child_process = require("child_process");
 
 // src/built-ins.ts
 var import_process = require("process");
+var builtInCommands = ["echo", "exit", "type", "pwd", "cd"];
+var isBuiltInCommand = (cmd) => {
+  return builtInCommands.includes(cmd);
+};
 var builtInMethods = {
   echo: ({ instruction }) => {
     return instruction.args.join(" ");
@@ -44,7 +48,7 @@ var builtInMethods = {
     if (!argsStr) {
       throw new Error("No command found, something went wrong.");
     }
-    if (builtInCommands.includes(argsStr)) {
+    if (isBuiltInCommand(argsStr) && builtInCommands.includes(argsStr)) {
       return `${argsStr} is a shell builtin`;
     }
     const filePath = checkPathForApp({ command: args.join(" ") });
@@ -75,7 +79,6 @@ var builtInMethods = {
     }
   }
 };
-var builtInCommands = Object.keys(builtInMethods);
 
 // node_modules/ts-pattern/dist/index.js
 var t = Symbol.for("@ts-pattern/matcher");
@@ -435,9 +438,14 @@ var tokensToInstruction = ({
 
 // src/main.ts
 var import_fs2 = require("fs");
+var completer = (line) => {
+  const hits = builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command} `);
+  return [hits.length ? hits : builtInCommands, line];
+};
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
+  completer
 });
 var getStdoutTarget = ({ instruction }) => {
   if (instruction.redirectOutputTo) {
@@ -475,7 +483,7 @@ var parsePrompt = async (answer) => {
     if (instruction.redirectErrorTo) {
       (0, import_fs2.writeFileSync)(instruction.redirectErrorTo, "");
     }
-    if (builtInCommands.includes(instruction.command)) {
+    if (isBuiltInCommand(instruction.command)) {
       const output = builtInMethods[instruction.command]({
         instruction
       });
