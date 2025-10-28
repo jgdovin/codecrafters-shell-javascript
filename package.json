@@ -5,7 +5,10 @@
   "main": "main.js",
   "scripts": {
     "dev": "node build/main.js",
-    "watch": "esbuild src/main.ts --bundle --outfile=build/main.js --platform=node --watch"
+    "build": "esbuild src/main.ts --bundle --outfile=build/main.js --platform=node",
+    "watch": "esbuild src/main.ts --bundle --outfile=build/main.js --platform=node --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint-watch": "eslint src/**/*.ts --watch"
   },
   "keywords": [
     "build-your-own-x"
@@ -13,10 +16,14 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.38.0",
     "@types/node": "^24.9.1",
     "esbuild": "0.25.11",
+    "eslint": "^9.38.0",
+    "globals": "^16.4.0",
     "ts-pattern": "^5.9.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
   }
 }
