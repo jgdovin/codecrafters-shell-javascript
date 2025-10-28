@@ -440,6 +440,9 @@ var tokensToInstruction = ({
 var import_fs2 = require("fs");
 var completer = (line) => {
   const hits = builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command} `);
+  if (!hits.length) {
+    process.stdout.write("\x07");
+  }
   return [hits.length ? hits : builtInCommands, line];
 };
 var rl = (0, import_readline.createInterface)({

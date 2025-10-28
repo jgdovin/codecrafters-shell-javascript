@@ -10,6 +10,9 @@ const completer = (line: string) => {
   const hits = builtInCommands
     .filter((command) => command.startsWith(line))
     .map((command) => `${command} `);
+  if (!hits.length) {
+    process.stdout.write("\u0007");
+  }
   return [hits.length ? hits : builtInCommands, line];
 };
 
