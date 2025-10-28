@@ -9,6 +9,15 @@ const redirectOutput: OperatorMethod = ({ output, tokens, cursor }) => {
   return tokens.length;
 };
 
+const redirectError: OperatorMethod = ({ output, tokens, cursor }) => {
+  output.redirectErrorTo = tokens
+    .slice(cursor + 1, tokens.length)
+    .map((token) => token.value)
+    .join(" ")
+    .trim();
+  return tokens.length;
+};
+
 const appendOutput: OperatorMethod = ({ output, tokens, cursor }) => {
   output.appendOutputTo = tokens
     .slice(cursor + 1, tokens.length)
@@ -18,8 +27,8 @@ const appendOutput: OperatorMethod = ({ output, tokens, cursor }) => {
   return tokens.length;
 };
 
-const redirectError: OperatorMethod = ({ output, tokens, cursor }) => {
-  output.redirectErrorTo = tokens
+const appendError: OperatorMethod = ({ output, tokens, cursor }) => {
+  output.appendErrorTo = tokens
     .slice(cursor + 1, tokens.length)
     .map((token) => token.value)
     .join(" ")
@@ -33,6 +42,7 @@ export const operatorMethods: Record<Operators, OperatorMethod> = {
   "2>": redirectError,
   "1>>": appendOutput,
   ">>": appendOutput,
+  "2>>": appendError,
 };
 
 export const matchOperator = ({

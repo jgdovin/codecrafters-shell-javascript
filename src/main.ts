@@ -21,21 +21,29 @@ const getStdoutTarget = ({ instruction }: { instruction: Instruction }) => {
   return "inherit";
 };
 
+const getSderrTarget = ({ instruction }: { instruction: Instruction }) => {
+  if (instruction.redirectErrorTo) {
+    return openSync(instruction.redirectErrorTo, "w");
+  }
+  if (instruction.appendErrorTo) {
+    return openSync(instruction.appendErrorTo, "a");
+  }
+  return "inherit";
+};
+
 const executeCommand = ({ instruction }: { instruction: Instruction }) => {
   const { command } = instruction;
 
   const filePath = checkPathForApp({ command });
 
   if (!filePath) throw new Error(`${command}: command not found`);
-  const stdOutTarget = getStdoutTarget({ instruction });
+  const stdoutTarget = getStdoutTarget({ instruction });
 
-  const errorOutTarget = instruction.redirectErrorTo
-    ? openSync(instruction.redirectErrorTo, "w")
-    : "inherit";
+  const stderrTarget = getSderrTarget({ instruction });
 
   spawnSync(`${command}`, instruction.args, {
     encoding: "utf-8",
-    stdio: ["inherit", stdOutTarget, errorOutTarget],
+    stdio: ["inherit", stdoutTarget, stderrTarget],
   });
 };
 
@@ -76,8 +84,10 @@ const parsePrompt = async (answer: string) => {
       console.log(`${answer}: An unknown error occured`);
       return;
     }
-    if (instruction.redirectErrorTo) {
-      writeFileSync(instruction.redirectErrorTo, `${e.message}\n`);
+    const target = getSderrTarget({ instruction });
+
+    if (target !== "inherit") {
+      writeSync(target, `${e.message}\n`);
       return;
     }
     console.log(e.message);

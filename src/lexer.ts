@@ -116,6 +116,7 @@ export const tokensToInstruction = ({
     redirectOutputTo: null,
     redirectErrorTo: null,
     appendOutputTo: null,
+    appendErrorTo: null,
   };
 
   let currentArg = "";

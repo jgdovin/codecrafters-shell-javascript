@@ -40,7 +40,7 @@ export const specialChars = Object.keys(SPECIAL_CHARS);
 
 export type SpecialChars = (typeof SPECIAL_CHARS)[keyof typeof SPECIAL_CHARS];
 
-export const OPERATORS = ["1>", ">", "2>", ">>", "1>>"] as const;
+export const OPERATORS = ["1>", ">", "2>", ">>", "1>>", "2>>"] as const;
 
 export type Operators = (typeof OPERATORS)[number];
 export interface Instruction {
@@ -49,6 +49,7 @@ export interface Instruction {
   redirectOutputTo: string | null;
   redirectErrorTo: string | null;
   appendOutputTo: string | null;
+  appendErrorTo: string | null;
 }
 
 export interface BuiltInMethodArgs {

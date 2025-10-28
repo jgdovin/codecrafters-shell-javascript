@@ -267,19 +267,23 @@ var SPECIAL_CHARS = {
   " ": "SPACE" /* SPACE */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
-var OPERATORS = ["1>", ">", "2>", ">>", "1>>"];
+var OPERATORS = ["1>", ">", "2>", ">>", "1>>", "2>>"];
 
 // src/operators.ts
 var redirectOutput = ({ output, tokens, cursor }) => {
   output.redirectOutputTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
   return tokens.length;
 };
+var redirectError = ({ output, tokens, cursor }) => {
+  output.redirectErrorTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+  return tokens.length;
+};
 var appendOutput = ({ output, tokens, cursor }) => {
   output.appendOutputTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
   return tokens.length;
 };
-var redirectError = ({ output, tokens, cursor }) => {
-  output.redirectErrorTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+var appendError = ({ output, tokens, cursor }) => {
+  output.appendErrorTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
   return tokens.length;
 };
 var operatorMethods = {
@@ -287,7 +291,8 @@ var operatorMethods = {
   "1>": redirectOutput,
   "2>": redirectError,
   "1>>": appendOutput,
-  ">>": appendOutput
+  ">>": appendOutput,
+  "2>>": appendError
 };
 var matchOperator = ({
   input,
@@ -382,7 +387,8 @@ var tokensToInstruction = ({
     args: [],
     redirectOutputTo: null,
     redirectErrorTo: null,
-    appendOutputTo: null
+    appendOutputTo: null,
+    appendErrorTo: null
   };
   let currentArg = "";
   for (let i2 = 0; i2 < tokens.length; i2++) {
@@ -442,15 +448,24 @@ var getStdoutTarget = ({ instruction }) => {
   }
   return "inherit";
 };
+var getSderrTarget = ({ instruction }) => {
+  if (instruction.redirectErrorTo) {
+    return (0, import_fs2.openSync)(instruction.redirectErrorTo, "w");
+  }
+  if (instruction.appendErrorTo) {
+    return (0, import_fs2.openSync)(instruction.appendErrorTo, "a");
+  }
+  return "inherit";
+};
 var executeCommand = ({ instruction }) => {
   const { command } = instruction;
   const filePath = checkPathForApp({ command });
   if (!filePath) throw new Error(`${command}: command not found`);
-  const stdOutTarget = getStdoutTarget({ instruction });
-  const errorOutTarget = instruction.redirectErrorTo ? (0, import_fs2.openSync)(instruction.redirectErrorTo, "w") : "inherit";
+  const stdoutTarget = getStdoutTarget({ instruction });
+  const stderrTarget = getSderrTarget({ instruction });
   (0, import_child_process.spawnSync)(`${command}`, instruction.args, {
     encoding: "utf-8",
-    stdio: ["inherit", stdOutTarget, errorOutTarget]
+    stdio: ["inherit", stdoutTarget, stderrTarget]
   });
 };
 var parsePrompt = async (answer) => {
@@ -482,8 +497,9 @@ var parsePrompt = async (answer) => {
       console.log(`${answer}: An unknown error occured`);
       return;
     }
-    if (instruction.redirectErrorTo) {
-      (0, import_fs2.writeFileSync)(instruction.redirectErrorTo, `${e2.message}
+    const target = getSderrTarget({ instruction });
+    if (target !== "inherit") {
+      (0, import_fs2.writeSync)(target, `${e2.message}
 `);
       return;
     }
