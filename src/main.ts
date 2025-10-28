@@ -85,14 +85,14 @@ const parsePrompt = async (answer: string) => {
         return;
       }
 
-      console.log(output);
+      process.stdout.write(output + "\n");
       return;
     }
 
     executeCommand({ instruction });
   } catch (e) {
     if (!(e instanceof Error)) {
-      console.log(`${answer}: An unknown error occured`);
+      process.stderr.write(`${answer}: An unknown error occured\n`);
       return;
     }
     const target = getSderrTarget({ instruction });
@@ -101,7 +101,7 @@ const parsePrompt = async (answer: string) => {
       writeSync(target, `${e.message}\n`);
       return;
     }
-    console.log(e.message);
+    process.stderr.write(e.message + "\n");
   }
   return;
 };

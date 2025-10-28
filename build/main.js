@@ -499,13 +499,14 @@ var parsePrompt = async (answer) => {
       if (!output) {
         return;
       }
-      console.log(output);
+      process.stdout.write(output + "\n");
       return;
     }
     executeCommand({ instruction });
   } catch (e2) {
     if (!(e2 instanceof Error)) {
-      console.log(`${answer}: An unknown error occured`);
+      process.stderr.write(`${answer}: An unknown error occured
+`);
       return;
     }
     const target = getSderrTarget({ instruction });
@@ -514,7 +515,7 @@ var parsePrompt = async (answer) => {
 `);
       return;
     }
-    console.log(e2.message);
+    process.stderr.write(e2.message + "\n");
   }
   return;
 };
