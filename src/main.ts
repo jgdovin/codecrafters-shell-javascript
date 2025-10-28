@@ -1,19 +1,30 @@
 import { createInterface } from "readline";
-import { checkPathForApp } from "./utils";
+import { checkPathForApp, checkPathForAutocomplete } from "./utils";
 import { spawnSync } from "child_process";
-import { builtInCommands, builtInMethods, isBuiltInCommand } from "./built-ins";
+import {
+  builtInCommands,
+  builtInMethods,
+  checkBuiltinsForAutocomplete,
+  isBuiltInCommand,
+} from "./built-ins";
 import { tokensToInstruction, tokenize } from "./lexer";
 import { Instruction } from "./types";
 import { openSync, writeFileSync, writeSync } from "fs";
 
 const completer = (line: string) => {
-  const hits = builtInCommands
-    .filter((command) => command.startsWith(line))
-    .map((command) => `${command} `);
-  if (!hits.length) {
+  const matches: Set<string> = new Set();
+
+  checkBuiltinsForAutocomplete({ line }).forEach((command) =>
+    matches.add(command)
+  );
+  checkPathForAutocomplete({ line }).forEach((command) =>
+    matches.add(`${command} `)
+  );
+
+  if (!matches.size) {
     process.stdout.write("\u0007");
   }
-  return [hits.length ? hits : builtInCommands, line];
+  return [matches.size ? Array.from(matches) : builtInCommands, line];
 };
 
 const rl = createInterface({

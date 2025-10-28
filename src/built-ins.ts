@@ -59,3 +59,13 @@ export const builtInMethods: Record<BuiltInCommandName, BuiltInMethod> = {
     }
   },
 } as const satisfies Record<string, BuiltInMethod>;
+
+export const checkBuiltinsForAutocomplete = ({
+  line,
+}: {
+  line: string;
+}): string[] => {
+  return builtInCommands
+    .filter((command) => command.startsWith(line))
+    .map((command) => `${command} `);
+};

@@ -5,7 +5,10 @@ var import_readline = require("readline");
 
 // src/utils.ts
 var import_fs = require("fs");
-var hasPermission = (path, mode = import_fs.constants.X_OK) => {
+var hasPermission = ({
+  path,
+  mode = import_fs.constants.X_OK
+}) => {
   try {
     (0, import_fs.accessSync)(path, mode);
     return true;
@@ -16,14 +19,44 @@ var hasPermission = (path, mode = import_fs.constants.X_OK) => {
 var checkPathForApp = ({
   command
 }) => {
+  if (!process.env.PATH) {
+    throw new Error("User has no PATH defined");
+  }
   const paths = process.env.PATH.split(":");
   for (const path of paths) {
     const filePath = `${path}/${command}`;
-    if (hasPermission(filePath)) {
+    if (hasPermission({ path: filePath })) {
       return filePath;
     }
   }
   return null;
+};
+var findPartialMatches = ({
+  path,
+  line
+}) => {
+  try {
+    const files = (0, import_fs.readdirSync)(path);
+    return files.filter((file) => file.startsWith(line));
+  } catch (e2) {
+    if (e2 instanceof Error) {
+      return [];
+    }
+    throw new Error("Unknown error");
+  }
+};
+var checkPathForAutocomplete = ({
+  line
+}) => {
+  if (!process.env.PATH) {
+    throw new Error("User has no PATH defined");
+  }
+  const matches = [];
+  const paths = process.env.PATH.split(":");
+  for (const path of paths) {
+    matches.push(...findPartialMatches({ path, line }));
+  }
+  return matches;
 };
 
 // src/main.ts
@@ -78,6 +111,11 @@ var builtInMethods = {
       throw new Error("Unknown error");
     }
   }
+};
+var checkBuiltinsForAutocomplete = ({
+  line
+}) => {
+  return builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command} `);
 };
 
 // node_modules/ts-pattern/dist/index.js
@@ -439,11 +477,17 @@ var tokensToInstruction = ({
 // src/main.ts
 var import_fs2 = require("fs");
 var completer = (line) => {
-  const hits = builtInCommands.filter((command) => command.startsWith(line)).map((command) => `${command} `);
-  if (!hits.length) {
+  const matches = /* @__PURE__ */ new Set();
+  checkBuiltinsForAutocomplete({ line }).forEach(
+    (command) => matches.add(command)
+  );
+  checkPathForAutocomplete({ line }).forEach(
+    (command) => matches.add(`${command} `)
+  );
+  if (!matches.size) {
     process.stdout.write("\x07");
   }
-  return [hits.length ? hits : builtInCommands, line];
+  return [matches.size ? Array.from(matches) : builtInCommands, line];
 };
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,
