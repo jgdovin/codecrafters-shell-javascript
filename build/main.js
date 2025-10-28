@@ -39,7 +39,7 @@ var builtInMethods = {
     (0, import_process.exit)(instruction.args.join(" "));
   },
   type: ({ instruction }) => {
-    const { command, args } = instruction;
+    const { args } = instruction;
     const argsStr = args.join(" ");
     if (!argsStr) {
       throw new Error("No command found, something went wrong.");
@@ -51,7 +51,7 @@ var builtInMethods = {
     if (filePath) {
       return `${argsStr} is ${filePath}`;
     }
-    return `${args[0]}: not found`;
+    throw new Error(`${args[0]}: not found`);
   },
   pwd: () => {
     return process.cwd();
@@ -68,7 +68,10 @@ var builtInMethods = {
       const path = args[0].replace("~", homeDir);
       process.chdir(path);
     } catch (e2) {
-      return `cd: ${args[0]}: No such file or directory`;
+      if (e2 instanceof Error) {
+        throw new Error(`cd: ${args[0]}: No such file or directory`);
+      }
+      throw new Error("Unknown error");
     }
   }
 };
@@ -264,20 +267,21 @@ var SPECIAL_CHARS = {
   " ": "SPACE" /* SPACE */
 };
 var specialChars = Object.keys(SPECIAL_CHARS);
-var OPERATORS = ["1>", ">"];
+var OPERATORS = ["1>", ">", "2>"];
 
 // src/operators.ts
-var redirectOutput = ({
-  output,
-  tokens,
-  cursor
-}) => {
-  output.redirectTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
-  return true;
+var redirectOutput = ({ output, tokens, cursor }) => {
+  output.redirectOutputTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+  return tokens.length;
+};
+var redirectError = ({ output, tokens, cursor }) => {
+  output.redirectErrorTo = tokens.slice(cursor + 1, tokens.length).map((token) => token.value).join(" ").trim();
+  return tokens.length;
 };
 var operatorMethods = {
   ">": redirectOutput,
-  "1>": redirectOutput
+  "1>": redirectOutput,
+  "2>": redirectError
 };
 var matchOperator = ({
   input,
@@ -370,7 +374,8 @@ var tokensToInstruction = ({
   const output = {
     command: command.value,
     args: [],
-    redirectTo: null
+    redirectOutputTo: null,
+    redirectErrorTo: null
   };
   let currentArg = "";
   for (let i2 = 0; i2 < tokens.length; i2++) {
@@ -400,7 +405,7 @@ var tokensToInstruction = ({
         throw new Error("No token found. Should be unreachable.");
       }
       if (token2.value in operatorMethods) {
-        shouldBreak = operatorMethods[token2.value]({
+        i2 += operatorMethods[token2.value]({
           output,
           tokens,
           cursor: i2
@@ -424,38 +429,47 @@ var rl = (0, import_readline.createInterface)({
 var executeCommand = ({ instruction }) => {
   const { command } = instruction;
   const filePath = checkPathForApp({ command });
-  if (!filePath) throw new Error("command not found");
-  const stdOutTarget = instruction.redirectTo ? (0, import_fs2.openSync)(instruction.redirectTo, "w") : "inherit";
+  if (!filePath) throw new Error(`${command}: command not found`);
+  const stdOutTarget = instruction.redirectOutputTo ? (0, import_fs2.openSync)(instruction.redirectOutputTo, "w") : "inherit";
+  const errorOutTarget = instruction.redirectErrorTo ? (0, import_fs2.openSync)(instruction.redirectErrorTo, "w") : "inherit";
   (0, import_child_process.spawnSync)(`${command}`, instruction.args, {
     encoding: "utf-8",
-    stdio: ["inherit", stdOutTarget, "inherit"]
+    stdio: ["inherit", stdOutTarget, errorOutTarget]
   });
 };
 var parsePrompt = async (answer) => {
   const tokens = tokenize({ input: answer });
   const instruction = tokensToInstruction({ tokens });
-  if (builtInCommands.includes(instruction.command)) {
-    const output = builtInMethods[instruction.command]({
-      instruction
-    });
-    if (instruction.redirectTo) {
-      (0, import_fs2.writeFileSync)(instruction.redirectTo, `${output}
+  try {
+    if (instruction.redirectErrorTo) {
+      (0, import_fs2.writeFileSync)(instruction.redirectErrorTo, "");
+    }
+    if (builtInCommands.includes(instruction.command)) {
+      const output = builtInMethods[instruction.command]({
+        instruction
+      });
+      if (instruction.redirectOutputTo) {
+        (0, import_fs2.writeFileSync)(instruction.redirectOutputTo, `${output}
+`);
+        return;
+      }
+      if (output) {
+        console.log(output);
+      }
+      return;
+    }
+    executeCommand({ instruction });
+  } catch (e2) {
+    if (!(e2 instanceof Error)) {
+      console.log(`${answer}: An unknown error occured`);
+      return;
+    }
+    if (instruction.redirectErrorTo) {
+      (0, import_fs2.writeFileSync)(instruction.redirectErrorTo, `${e2.message}
 `);
       return;
     }
-    if (output) {
-      console.log(output);
-    }
-    return;
-  }
-  try {
-    executeCommand({ instruction });
-  } catch (e2) {
-    if (e2 instanceof Error) {
-      console.log(`${answer}: ${e2.message}`);
-    } else {
-      console.log(`${answer}: An unknown error occured`);
-    }
+    console.log(e2.message);
   }
   return;
 };

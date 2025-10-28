@@ -27,12 +27,12 @@ export const builtInMethods: Record<string, BuiltInMethod> = {
       return `${argsStr} is ${filePath}`;
     }
 
-    return `${args[0]}: not found`;
+    throw new Error(`${args[0]}: not found`);
   },
   pwd: (): string => {
     return process.cwd();
   },
-  cd: ({ instruction }: BuiltInMethodArgs): string | void => {
+  cd: ({ instruction }: BuiltInMethodArgs): void => {
     const { args } = instruction;
 
     try {
@@ -46,7 +46,7 @@ export const builtInMethods: Record<string, BuiltInMethod> = {
       process.chdir(path);
     } catch (e) {
       if (e instanceof Error) {
-        return `cd: ${args[0]}: No such file or directory`;
+        throw new Error(`cd: ${args[0]}: No such file or directory`);
       }
       throw new Error("Unknown error");
     }

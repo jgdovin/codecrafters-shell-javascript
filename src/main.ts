@@ -16,13 +16,18 @@ const executeCommand = ({ instruction }: { instruction: Instruction }) => {
 
   const filePath = checkPathForApp({ command });
 
-  if (!filePath) throw new Error("command not found");
-  const stdOutTarget = instruction.redirectTo
-    ? openSync(instruction.redirectTo, "w")
+  if (!filePath) throw new Error(`${command}: command not found`);
+  const stdOutTarget = instruction.redirectOutputTo
+    ? openSync(instruction.redirectOutputTo, "w")
     : "inherit";
+
+  const errorOutTarget = instruction.redirectErrorTo
+    ? openSync(instruction.redirectErrorTo, "w")
+    : "inherit";
+
   spawnSync(`${command}`, instruction.args, {
     encoding: "utf-8",
-    stdio: ["inherit", stdOutTarget, "inherit"],
+    stdio: ["inherit", stdOutTarget, errorOutTarget],
   });
 };
 
@@ -31,29 +36,38 @@ const parsePrompt = async (answer: string) => {
 
   const instruction = tokensToInstruction({ tokens });
 
-  if (builtInCommands.includes(instruction.command)) {
-    const output = builtInMethods[instruction.command]({
-      instruction,
-    });
+  try {
+    if (instruction.redirectErrorTo) {
+      // always create the error log file even if no error
+      writeFileSync(instruction.redirectErrorTo, "");
+    }
 
-    if (instruction.redirectTo) {
-      writeFileSync(instruction.redirectTo, `${output}\n`);
+    if (builtInCommands.includes(instruction.command)) {
+      const output = builtInMethods[instruction.command]({
+        instruction,
+      });
+
+      if (instruction.redirectOutputTo) {
+        writeFileSync(instruction.redirectOutputTo, `${output}\n`);
+        return;
+      }
+      if (output) {
+        console.log(output);
+      }
       return;
     }
-    if (output) {
-      console.log(output);
-    }
-    return;
-  }
 
-  try {
     executeCommand({ instruction });
   } catch (e) {
-    if (e instanceof Error) {
-      console.log(`${answer}: ${e.message}`);
-    } else {
+    if (!(e instanceof Error)) {
       console.log(`${answer}: An unknown error occured`);
+      return;
     }
+    if (instruction.redirectErrorTo) {
+      writeFileSync(instruction.redirectErrorTo, `${e.message}\n`);
+      return;
+    }
+    console.log(e.message);
   }
   return;
 };

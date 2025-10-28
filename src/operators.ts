@@ -1,21 +1,27 @@
 import { OperatorMethod, OPERATORS, Operators } from "./types";
 
-const redirectOutput: OperatorMethod = ({
-  output,
-  tokens,
-  cursor,
-}): boolean => {
-  output.redirectTo = tokens
+const redirectOutput: OperatorMethod = ({ output, tokens, cursor }) => {
+  output.redirectOutputTo = tokens
     .slice(cursor + 1, tokens.length)
     .map((token) => token.value)
     .join(" ")
     .trim();
-  return true;
+  return tokens.length;
+};
+
+const redirectError: OperatorMethod = ({ output, tokens, cursor }) => {
+  output.redirectErrorTo = tokens
+    .slice(cursor + 1, tokens.length)
+    .map((token) => token.value)
+    .join(" ")
+    .trim();
+  return tokens.length;
 };
 
 export const operatorMethods: Record<Operators, OperatorMethod> = {
   ">": redirectOutput,
   "1>": redirectOutput,
+  "2>": redirectError,
 };
 
 export const matchOperator = ({

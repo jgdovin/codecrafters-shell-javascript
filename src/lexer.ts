@@ -113,7 +113,8 @@ export const tokensToInstruction = ({
   const output: Instruction = {
     command: command.value,
     args: [],
-    redirectTo: null,
+    redirectOutputTo: null,
+    redirectErrorTo: null,
   };
 
   let currentArg = "";
@@ -150,7 +151,7 @@ export const tokensToInstruction = ({
         }
 
         if (token.value in operatorMethods) {
-          shouldBreak = operatorMethods[token.value]({
+          i += operatorMethods[token.value]({
             output,
             tokens,
             cursor: i,
