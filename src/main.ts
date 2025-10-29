@@ -10,12 +10,26 @@ import { tokensToInstruction, tokenize } from "./lexer";
 import { Instruction } from "./types";
 import { openSync, writeFileSync, writeSync } from "fs";
 
+const findCommonPrefix = ({ strings }: { strings: string[] }): string => {
+  if (strings.length < 2) return "";
+
+  let prefix = strings[0];
+  for (let i = 1; i < strings.length; i++) {
+    while (strings[i].indexOf(prefix) !== 0) {
+      prefix = prefix.substring(0, prefix.length - 1);
+      if (prefix === "") return "";
+    }
+  }
+  return prefix;
+};
+
 const completer: AsyncCompleter = (line, callback) => {
   const matches: Set<string> = new Set();
 
   checkBuiltinsForAutocomplete({ line }).forEach((command) =>
     matches.add(command)
   );
+
   checkPathForAutocomplete({ line }).forEach((command) => matches.add(command));
 
   const matchArr = Array.from(matches).sort();
@@ -28,9 +42,17 @@ const completer: AsyncCompleter = (line, callback) => {
   if (matchArr.length === 1) {
     return callback(null, [[`${matchArr[0]} `], line]);
   }
+
   process.stdout.write("\u0007");
+
+  const commonPrefix = findCommonPrefix({ strings: matchArr });
+  if (commonPrefix.length > line.length) {
+    return callback(null, [[commonPrefix], line]);
+  }
+
   process.stdout.write("\r\n" + matchArr.join("  ") + "\r\n$ " + line);
-  return callback(null, [[], line]);
+
+  return callback(null, [[line], line]);
 };
 
 const rl = createInterface({

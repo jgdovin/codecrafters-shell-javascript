@@ -476,6 +476,17 @@ var tokensToInstruction = ({
 
 // src/main.ts
 var import_fs2 = require("fs");
+var findCommonPrefix = ({ strings }) => {
+  if (strings.length < 2) return "";
+  let prefix = strings[0];
+  for (let i2 = 1; i2 < strings.length; i2++) {
+    while (strings[i2].indexOf(prefix) !== 0) {
+      prefix = prefix.substring(0, prefix.length - 1);
+      if (prefix === "") return "";
+    }
+  }
+  return prefix;
+};
 var completer = (line, callback) => {
   const matches = /* @__PURE__ */ new Set();
   checkBuiltinsForAutocomplete({ line }).forEach(
@@ -491,8 +502,12 @@ var completer = (line, callback) => {
     return callback(null, [[`${matchArr[0]} `], line]);
   }
   process.stdout.write("\x07");
+  const commonPrefix = findCommonPrefix({ strings: matchArr });
+  if (commonPrefix.length > line.length) {
+    return callback(null, [[commonPrefix], line]);
+  }
   process.stdout.write("\r\n" + matchArr.join("  ") + "\r\n$ " + line);
-  return callback(null, [[], line]);
+  return callback(null, [[line], line]);
 };
 var rl = (0, import_readline.createInterface)({
   input: process.stdin,
